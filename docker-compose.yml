@@ -1,0 +1,33 @@
+services:
+  cdnbestip:
+    image: ghcr.io/lemon-casino/cdnbestip:latest
+    container_name: cdnbestip
+    restart: unless-stopped
+    environment:
+      CLOUDFLARE_API_TOKEN: "${CLOUDFLARE_API_TOKEN:?Set CLOUDFLARE_API_TOKEN before starting}"
+      TZ: Asia/Shanghai
+    command:
+      - cdnbestip
+      - --ip-url
+      - all
+      - --url
+      - "${CDNBESTIP_SPEED_URL:-https://cf.xiu2.xyz/url}"
+      - --domain
+      - lemon.vin
+      - --prefix
+      - cdst
+      - --speed
+      - "10"
+      - --port
+      - "443"
+      - --dns
+      - --only
+      - --schedule
+      - "60"
+    volumes:
+      - cdnbestip-data:/app
+      - cdnbestip-cache:/root/.cdnbestip
+
+volumes:
+  cdnbestip-data:
+  cdnbestip-cache:
