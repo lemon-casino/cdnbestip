@@ -39,8 +39,11 @@ class TestIPSourceManager:
             assert info["url"] == f"https://asn.ipinfo.app/api/text/list/{asn}"
 
         all_info = self.manager.get_source_info("all")
-        assert all_info["requires_custom_url"] is True
+        assert all_info["requires_custom_url"] is False
         assert all_info["ip_version"] == 4
+        assert self.manager.get_default_test_url("cf") == (
+            "https://speed.cloudflare.com/__down?bytes=104857600"
+        )
 
     def test_get_source_info_invalid_source(self):
         """Test getting information for an invalid source."""

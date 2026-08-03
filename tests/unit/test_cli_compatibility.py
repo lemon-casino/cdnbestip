@@ -201,6 +201,16 @@ class TestCLICompatibility:
             validate_arguments(args)
             assert args.ipurl == "https://custom.example.com/ips.txt"
 
+    def test_all_source_does_not_require_custom_speed_url(self):
+        """Test that all-source mode loads without a -u URL."""
+        with patch("sys.argv", ["cdnbestip", "-i", "all"]):
+            args = parse_arguments()
+            validate_arguments(args)
+            config = load_config(args)
+
+            assert config.ip_data_url == "all"
+            assert config.speed_url is None
+
     def test_validation_compatibility(self):
         """Test that validation rules match shell script behavior."""
         # Test speed validation (must be >= 0)

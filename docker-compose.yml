@@ -5,13 +5,12 @@ services:
     restart: unless-stopped
     environment:
       CLOUDFLARE_API_TOKEN: "${CLOUDFLARE_API_TOKEN:?Set CLOUDFLARE_API_TOKEN before starting}"
+      CDNBESTIP_URL: "${CDNBESTIP_SPEED_URL:-}"
       TZ: Asia/Shanghai
     command:
       - cdnbestip
       - --ip-url
       - all
-      - --url
-      - "${CDNBESTIP_SPEED_URL:-https://cf.xiu2.xyz/url}"
       - --domain
       - lemon.vin
       - --prefix

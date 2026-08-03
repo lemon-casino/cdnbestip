@@ -232,7 +232,7 @@ IP Data Sources:
   gc   - GCore IPs  
   ct   - CloudFront IPs
   aws  - Amazon AWS IPs
-  all  - Merge all predefined IPv4 sources and remove duplicates (requires -u)
+  all  - Merge all predefined IPv4 sources, remove duplicates, and auto-test sources with built-in endpoints
   <url> - Custom IP data URL
 
 Zone Types:
@@ -322,13 +322,13 @@ cdnbestip -d example.com -p cf -s 2 -n
 
 | IP 源 | 提供商 | 自动测试端点 | 需要 `-u` 参数？ |
 |-------|--------|-------------|-----------------|
-| `cf` | CloudFlare | `https://cf.xiu2.xyz/url` | 否 |
-| `as13335` | Cloudflare AS13335 IPv4 宣告网段 | `https://cf.xiu2.xyz/url` | 否 |
-| `as209242` | Cloudflare AS209242 IPv4 宣告网段 | `https://cf.xiu2.xyz/url` | 否 |
+| `cf` | CloudFlare | `https://speed.cloudflare.com/__down?bytes=104857600` | 否 |
+| `as13335` | Cloudflare AS13335 IPv4 宣告网段 | `https://speed.cloudflare.com/__down?bytes=104857600` | 否 |
+| `as209242` | Cloudflare AS209242 IPv4 宣告网段 | `https://speed.cloudflare.com/__down?bytes=104857600` | 否 |
 | `gc` | GCore | `https://hk2-speedtest.tools.gcore.com/speedtest-backend/garbage.php?ckSize=100` | 否 |
 | `ct` | CloudFront | 无 | **是** |
 | `aws` | Amazon AWS | 无 | **是** |
-| `all` | 全部预定义 IPv4 源（自动去重） | 无 | **是** |
+| `all` | 全部预定义 IPv4 源（自动去重） | 按数据源自动选择 | 否（CloudFront/AWS 无默认地址） |
 | 自定义 URL | 自定义 | 无 | **是** |
 
 ### 使用示例
@@ -346,7 +346,10 @@ cdnbestip -i as13335 -d example.com -p cf -s 2 -n
 # AS209242 IPv4 宣告网段
 cdnbestip -i as209242 -d example.com -p cf -s 2 -n
 
-# 合并全部 IPv4 数据源并去重（必须指定统一测速 URL）
+# 合并全部 IPv4 数据源并去重（自动分组测速，无需 -u）
+cdnbestip -i all -d example.com -p cf -s 2 -n
+
+# 使用统一 URL 测试全部已合并 IP（可选；CloudFront/AWS 需要适配它们的 URL）
 cdnbestip -i all -u https://example.com/test -d example.com -p cf -s 2 -n
 
 # GCore IP 源 - 自动使用 GCore 测试端点
@@ -385,9 +388,9 @@ cdnbestip -t YOUR_API_TOKEN -d example.com -p cf -s 2 -n -o
 
 ```bash
 # CloudFlare 官方测试端点
-https://speed.cloudflare.com/__down?during=download&bytes=104857600
+https://speed.cloudflare.com/__down?bytes=104857600
 
-# 第三方 CloudFlare 测试端点
+# 旧版第三方 CloudFlare 测试端点（仍可通过 -u 手动指定）
 https://cf.xiu2.xyz/url
 ```
 

@@ -67,7 +67,7 @@ IP Data Sources:
   gc   - GCore IPs
   ct   - CloudFront IPs
   aws  - Amazon AWS IPs
-  all  - Merge all predefined IPv4 sources and remove duplicates (requires -u)
+  all  - Merge all predefined IPv4 sources and remove duplicates; auto-test sources with built-in endpoints
   <url> - Custom IP data URL
 
 Zone Types:
@@ -465,6 +465,8 @@ def print_configuration_summary(config: Config) -> None:
 
     if config.speed_url:
         print(f"  ✓ Test URL: {config.speed_url}")
+    elif config.ip_data_url and config.ip_data_url.lower() == "all":
+        print("  ✓ Test URL: Automatic per-source endpoints")
 
     if config.quantity > 0:
         print(f"  ✓ Record Limit: {config.quantity}")
@@ -546,6 +548,7 @@ class WorkflowOrchestrator:
         self.speedtest_manager = SpeedTestManager(config)
         self.results_handler = ResultsHandler(config)
         self.ip_source_manager = IPSourceManager(config)
+        self._all_source_files: dict[str, str] = {}
         self.dns_manager = None
 
         # Initialize DNS manager only if needed
@@ -625,7 +628,25 @@ class WorkflowOrchestrator:
             # Check if we need to refresh the IP file
             force_refresh = self.config.refresh or not os.path.exists(ip_file)
 
-            if force_refresh:
+            if ip_source == "all":
+                # Keep individual IPv4 files so automatic all-source mode can
+                # test each provider with its own endpoint.
+                print("  📥 Downloading and preparing all predefined IPv4 sources")
+                try:
+                    self._all_source_files = self.ip_source_manager.download_all_source_files(
+                        ".", force_refresh=force_refresh
+                    )
+                except Exception as e:
+                    if "timeout" in str(e).lower() or "connection" in str(e).lower():
+                        raise NetworkError(
+                            "Failed to download all IP sources",
+                            url=ip_source,
+                            suggestion="Check your internet connection and try again",
+                        ) from e
+                    raise IPSourceError(
+                        f"Failed to build merged IP source: {e}", source=ip_source
+                    ) from e
+            elif force_refresh:
                 print(f"  📥 Downloading IP list from source: {ip_source}")
                 try:
                     self.ip_source_manager.download_ip_list(ip_source, ip_file, force_refresh=True)
@@ -709,12 +730,20 @@ class WorkflowOrchestrator:
         """
         print("\n⚡ Step 2: Running speed test...")
 
+        # A single URL cannot reliably validate IPs belonging to different CDN
+        # providers. When all sources are selected without -u, run the
+        # providers that have built-in endpoints separately and merge results.
+        if self.config.ip_data_url and self.config.ip_data_url.lower() == "all" and not self.config.speed_url:
+            return self._run_all_source_speed_tests()
+
         results_file = "result.csv"
 
         try:
             # Check if we need to refresh results
-            force_refresh = self.config.refresh or self.speedtest_manager.should_refresh_results(
-                results_file
+            force_refresh = (
+                self.config.refresh
+                or self.config.schedule_interval is not None
+                or self.speedtest_manager.should_refresh_results(results_file)
             )
 
             if force_refresh:
@@ -802,6 +831,127 @@ class WorkflowOrchestrator:
             raise
         except Exception as e:
             raise SpeedTestError(f"Unexpected error during speed test: {e}") from e
+
+    def _run_all_source_speed_tests(self) -> str:
+        """Run automatic provider-specific tests for ``-i all``."""
+        results_file = "result.csv"
+        force_refresh = (
+            self.config.refresh
+            or self.config.schedule_interval is not None
+            or self.speedtest_manager.should_refresh_results(results_file)
+        )
+
+        if not force_refresh:
+            print(f"  ✓ Using existing results file: {results_file}")
+            return results_file
+
+        print("  🔁 No custom URL specified; using automatic source-specific endpoints")
+        self.speedtest_manager.ensure_binary_available()
+
+        test_groups = [
+            ("cloudflare", ("cf", "as13335", "as209242"), "cf"),
+            ("gcore", ("gc",), "gc"),
+            ("cloudfront", ("ct",), "ct"),
+            ("aws", ("aws",), "aws"),
+        ]
+        result_files: list[str] = []
+        skipped_sources: list[str] = []
+
+        for group_name, source_keys, url_source in test_groups:
+            source_url = self.ip_source_manager.get_default_test_url(url_source)
+            if not source_url:
+                skipped_sources.extend(source_keys)
+                print(
+                    f"  ⚠️ Skipping {group_name.upper()}: no built-in speed URL; "
+                    "provide -u to test it"
+                )
+                continue
+
+            group_file = f"ip_list_auto_{group_name}.txt"
+            group_ips: list[str] = []
+            seen_ips: set[str] = set()
+            for source_key in source_keys:
+                source_file = self._all_source_files.get(source_key, f"ip_list_{source_key}.txt")
+                if not os.path.exists(source_file):
+                    continue
+                try:
+                    with open(source_file, encoding="utf-8") as file:
+                        for line in file:
+                            ip = line.strip()
+                            if ip and ip not in seen_ips:
+                                seen_ips.add(ip)
+                                group_ips.append(ip)
+                except OSError as exc:
+                    logger.warning("Unable to read %s: %s", source_file, exc)
+
+            if not group_ips:
+                skipped_sources.extend(source_keys)
+                print(f"  ⚠️ Skipping {group_name.upper()}: no IPv4 addresses available")
+                continue
+
+            with open(group_file, "w", encoding="utf-8") as file:
+                file.write("\n".join(group_ips) + "\n")
+
+            group_result_file = f"result_{group_name}.csv"
+            if os.path.exists(group_result_file):
+                os.remove(group_result_file)
+
+            print(f"  🏃 Testing {group_name.upper()} ({len(group_ips)} IPv4 addresses)")
+            print(f"    - Test URL: {source_url}")
+            try:
+                self.speedtest_manager.run_speed_test(
+                    group_file, group_result_file, speed_url=source_url
+                )
+                if os.path.exists(group_result_file):
+                    result_files.append(group_result_file)
+            except Exception as exc:
+                logger.warning("Automatic %s speed test failed: %s", group_name, exc)
+                print(f"  ⚠️ {group_name.upper()} speed test failed: {exc}")
+
+        if not result_files:
+            raise SpeedTestError(
+                "No automatic source speed tests completed. "
+                "Provide -u for a unified test URL or check network connectivity."
+            )
+
+        self._merge_speed_test_results(result_files, results_file)
+        print(f"  ✓ Merged {len(result_files)} automatic source result files: {results_file}")
+        if skipped_sources:
+            print(
+                "  ⚠️ Sources not tested automatically: "
+                f"{', '.join(source.upper() for source in skipped_sources)}"
+            )
+        return results_file
+
+    @staticmethod
+    def _merge_speed_test_results(result_files: list[str], output_file: str) -> None:
+        """Merge CloudflareSpeedTest CSV files and remove duplicate IP rows."""
+        header: str | None = None
+        seen_ips: set[str] = set()
+
+        with open(output_file, "w", encoding="utf-8") as output:
+            for result_file in result_files:
+                with open(result_file, encoding="utf-8", errors="ignore") as source:
+                    lines = source.readlines()
+
+                if not lines:
+                    continue
+                if header is None:
+                    header = lines[0].rstrip("\r\n")
+                    output.write(header + "\n")
+
+                for line in lines[1:]:
+                    clean_line = line.rstrip("\r\n")
+                    if not clean_line:
+                        continue
+                    ip = clean_line.split(",", 1)[0].strip()
+                    if not ip or ip in seen_ips:
+                        continue
+                    seen_ips.add(ip)
+                    output.write(clean_line + "\n")
+
+        if header is None:
+            raise SpeedTestError("Automatic source result files are empty")
 
     def _process_results(self, results_file: str) -> list[SpeedTestResult]:
         """Process and filter speed test results."""

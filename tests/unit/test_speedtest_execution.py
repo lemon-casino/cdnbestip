@@ -83,6 +83,25 @@ class TestSpeedTestExecution:
 
     @patch("subprocess.run")
     @patch("os.path.exists")
+    def test_run_speed_test_with_source_url_override(self, mock_exists, mock_run):
+        """Test that an automatic source URL overrides the global URL."""
+        mock_exists.side_effect = lambda path: path in ["/tmp/ip.txt", "result.csv"]
+        mock_result = Mock()
+        mock_result.returncode = 0
+        mock_run.return_value = mock_result
+
+        self.config.speed_url = "https://global.example/test"
+        self.manager.run_speed_test(
+            "/tmp/ip.txt",
+            speed_url="https://speed.cloudflare.com/__down?bytes=104857600",
+        )
+
+        call_args = mock_run.call_args[0][0]
+        assert "https://speed.cloudflare.com/__down?bytes=104857600" in call_args
+        assert "https://global.example/test" not in call_args
+
+    @patch("subprocess.run")
+    @patch("os.path.exists")
     def test_run_speed_test_without_speed_threshold(self, mock_exists, mock_run):
         """Test speed test execution without speed threshold (should not add -sl/-tl)."""
         # Set speed_threshold to None

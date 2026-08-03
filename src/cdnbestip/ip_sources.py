@@ -25,7 +25,7 @@ class IPSourceManager:
             "url": "https://www.cloudflare.com/ips-v4",
             "type": "text",
             "description": "CloudFlare IPv4 ranges",
-            "default_test_url": "",  # CloudFlare default test endpoint
+            "default_test_url": "https://speed.cloudflare.com/__down?bytes=104857600",
         },
         "as13335": {
             "name": "Cloudflare AS13335",
@@ -33,7 +33,7 @@ class IPSourceManager:
             "type": "text",
             "ip_version": 4,
             "description": "Cloudflare AS13335 announced IPv4 prefixes",
-            "default_test_url": "",  # CloudFlare default test endpoint
+            "default_test_url": "https://speed.cloudflare.com/__down?bytes=104857600",
         },
         "as209242": {
             "name": "Cloudflare AS209242",
@@ -41,7 +41,7 @@ class IPSourceManager:
             "type": "text",
             "ip_version": 4,
             "description": "Cloudflare Spectrum/BYOIP AS209242 announced IPv4 prefixes",
-            "default_test_url": "",  # CloudFlare default test endpoint
+            "default_test_url": "https://speed.cloudflare.com/__down?bytes=104857600",
         },
         "gc": {
             "name": "GCore",
@@ -72,8 +72,8 @@ class IPSourceManager:
             "name": "All IP Sources",
             "type": "multi",
             "ip_version": 4,
-            "description": "Merged IPv4 ranges from all predefined sources",
-            "requires_custom_url": True,  # A unified test URL is required
+            "description": "Merged IPv4 ranges from all predefined sources; auto-tests sources with built-in endpoints",
+            "requires_custom_url": False,
             "default_test_url": None,
         },
     }
@@ -158,33 +158,60 @@ class IPSourceManager:
             self._download_from_source(source_info, url, output_file, force_refresh, source)
 
     def _download_all_sources(self, output_file: str, force_refresh: bool = False) -> None:
-        """Download all predefined sources, merge IPv4 entries, and remove duplicates."""
+        """Download all sources and save only the merged file for compatibility."""
+        with tempfile.TemporaryDirectory(prefix="cdnbestip-all-") as temp_dir:
+            self.download_all_source_files(temp_dir, force_refresh=force_refresh)
+            merged_file = Path(temp_dir) / "ip_list_all.txt"
+            merged = merged_file.read_text(encoding="utf-8").splitlines()
+            self._save_ip_list(merged, output_file)
+
+    def download_all_source_files(
+        self, output_dir: str = ".", force_refresh: bool = False
+    ) -> dict[str, str]:
+        """Download every predefined source and retain per-source IPv4 files.
+
+        The per-source files allow the workflow to use a provider-specific speed
+        test URL when ``-i all`` is used without a custom ``-u`` URL. The merged
+        file is still written for compatibility and for callers that need one
+        de-duplicated IPv4 list.
+        """
+        output_path = Path(output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+
         merged: list[str] = []
         seen: set[str] = set()
+        source_files: dict[str, str] = {}
         errors: list[str] = []
 
-        with tempfile.TemporaryDirectory(prefix="cdnbestip-all-") as temp_dir:
-            for source in self.ALL_SOURCE_KEYS:
-                source_file = Path(temp_dir) / f"{source}.txt"
-                try:
-                    self.download_ip_list(source, str(source_file), force_refresh=force_refresh)
-                    source_lines = source_file.read_text(encoding="utf-8").splitlines()
-                except (IPSourceError, OSError) as exc:
-                    errors.append(f"{source}: {exc}")
-                    logger.warning("Skipping IP source %s while building all sources: %s", source, exc)
-                    continue
+        for source in self.ALL_SOURCE_KEYS:
+            source_file = output_path / f"ip_list_{source}.txt"
+            try:
+                self.download_ip_list(source, str(source_file), force_refresh=force_refresh)
+                source_lines = source_file.read_text(encoding="utf-8").splitlines()
+                ipv4_entries = self._filter_ip_list(source_lines, ip_version=4)
+                if not ipv4_entries:
+                    raise IPSourceError("Source returned no IPv4 entries")
 
-                for entry in self._filter_ip_list(source_lines, ip_version=4):
+                # Keep the source files IPv4-only as well as the merged file.
+                self._save_ip_list(ipv4_entries, str(source_file))
+                source_files[source] = str(source_file)
+
+                for entry in ipv4_entries:
                     if entry not in seen:
                         seen.add(entry)
                         merged.append(entry)
+            except (IPSourceError, OSError) as exc:
+                errors.append(f"{source}: {exc}")
+                logger.warning("Skipping IP source %s while building all sources: %s", source, exc)
 
         if not merged:
             details = "; ".join(errors) or "No predefined source returned IPv4 entries"
             raise IPSourceError(f"Failed to build merged IP source: {details}", source="all")
 
-        self._save_ip_list(merged, output_file)
+        merged_file = output_path / "ip_list_all.txt"
+        self._save_ip_list(merged, str(merged_file))
         self._save_to_cache(merged, self._get_cache_file("all"))
+        return source_files
 
     def _apply_cdn_url(self, url: str) -> str:
         """Apply CDN URL prefix if configured."""

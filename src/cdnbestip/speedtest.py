@@ -308,8 +308,17 @@ class SpeedTestManager:
 
     @log_function_call
     @log_performance("Speed Test Execution")
-    def run_speed_test(self, ip_file: str, output_file: str = "result.csv") -> str:
-        """Run speed test and return results file path."""
+    def run_speed_test(
+        self,
+        ip_file: str,
+        output_file: str = "result.csv",
+        speed_url: str | None = None,
+    ) -> str:
+        """Run speed test and return results file path.
+
+        ``speed_url`` is an optional per-source override used by ``-i all``.
+        When omitted, the configured global URL is used as before.
+        """
         logger.info(f"Starting speed test with IP file: {ip_file}")
 
         if not self.binary_path:
@@ -334,11 +343,12 @@ class SpeedTestManager:
             cmd_args.extend(["-tp", str(self.config.speed_port)])
             logger.debug(f"Using custom port: {self.config.speed_port}")
 
-        # Only add URL parameter if explicitly configured
-        # When no IP source is specified or no URL is set, let CloudflareSpeedTest use its defaults
-        if hasattr(self.config, "speed_url") and self.config.speed_url:
-            cmd_args.extend(["-url", self.config.speed_url])
-            logger.debug(f"Using test URL: {self.config.speed_url}")
+        # Only add URL parameter if explicitly configured. A per-source URL
+        # takes precedence over the global configuration when provided.
+        test_url = speed_url if speed_url is not None else getattr(self.config, "speed_url", None)
+        if test_url:
+            cmd_args.extend(["-url", test_url])
+            logger.debug(f"Using test URL: {test_url}")
         else:
             logger.debug("No test URL specified, using CloudflareSpeedTest defaults")
 

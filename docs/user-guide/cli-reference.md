@@ -126,7 +126,7 @@ cdnbestip -d example.com -p cf -s 2 -u https://speed.cloudflare.com/__down?bytes
 | `gc` | GCore | ✅ | 亚太 |
 | `ct` | CloudFront | ❌ | 全球 |
 | `aws` | Amazon AWS | ❌ | 全球 |
-| `all` | 全部预定义 IPv4 源并自动去重 | ❌，需要 `-u` | 全球 |
+| `all` | 全部预定义 IPv4 源并自动去重，自动分组测速 | ✅；CloudFront/AWS 无默认测速地址 | 全球 |
 
 **示例：**
 
@@ -140,7 +140,10 @@ cdnbestip -i as13335 -d example.com -p cf -s 2 -n
 # 使用 Cloudflare AS209242 IPv4 宣告网段
 cdnbestip -i as209242 -d example.com -p cf -s 2 -n
 
-# 合并全部 IPv4 数据源并去重（需要统一测速 URL）
+# 合并全部 IPv4 数据源并去重（自动分组测速，无需指定 URL）
+cdnbestip -i all -d example.com -p cf -s 2 -n
+
+# 可选：使用统一测速 URL 测试全部合并 IP
 cdnbestip -i all -u https://example.com/test -d example.com -p cf -s 2 -n
 
 # 使用 GCore IP
