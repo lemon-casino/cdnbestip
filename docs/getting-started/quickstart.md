@@ -18,7 +18,7 @@
 2. 进入 **My Profile** → **API Tokens**
 3. 点击 **Create Token**
 4. 选择 **Edit zone DNS** 模板
-5. 配置权限并创建令牌
+5. 确认目标域名具备 `Zone Read` 和 `DNS Write` 权限并创建令牌
 6. 复制生成的令牌
 
 ### 方法 2: API 密钥

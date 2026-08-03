@@ -32,13 +32,10 @@ class TestCloudFlareAPIAuthentication:
         mock_client = Mock()
         mock_cloudflare.return_value = mock_client
 
-        # Mock successful user.get() call
-        mock_user = Mock()
-        mock_user.id = "user123"
-        mock_user.email = "test@example.com"
-        mock_user.first_name = "Test"
-        mock_user.last_name = "User"
-        mock_client.user.get.return_value = mock_user
+        # Mock successful zone lookup for token validation
+        mock_zones = Mock()
+        mock_zones.result = []
+        mock_client.zones.list.return_value = mock_zones
 
         dns_manager = DNSManager(self.config)
         dns_manager.authenticate()
@@ -46,7 +43,7 @@ class TestCloudFlareAPIAuthentication:
         # Verify authentication
         assert dns_manager.is_authenticated()
         mock_cloudflare.assert_called_once_with(api_token="test_token_12345")
-        mock_client.user.get.assert_called_once()
+        mock_client.zones.list.assert_called_once_with(per_page=1)
 
     @patch("cdnbestip.dns.Cloudflare")
     def test_api_key_email_authentication_flow(self, mock_cloudflare):
@@ -87,7 +84,7 @@ class TestCloudFlareAPIAuthentication:
         # Mock authentication error
         mock_response = Mock()
         mock_response.status_code = 401
-        mock_client.user.get.side_effect = cloudflare.AuthenticationError(
+        mock_client.zones.list.side_effect = cloudflare.AuthenticationError(
             message="Invalid API token",
             response=mock_response,
             body={"errors": [{"code": 10000, "message": "Invalid API token"}]},

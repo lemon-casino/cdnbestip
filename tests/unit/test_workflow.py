@@ -226,12 +226,14 @@ class TestWorkflowOrchestrator:
 
         mock_rh = mock_results_handler.return_value
         mock_rh.filter_by_speed.return_value = sample_results
+        mock_rh.get_top_results.return_value = sample_results[:1]
 
         # Execute
         results = workflow._process_results("result.csv")
 
         # Verify
         assert len(results) == 1  # Only one result in only-one mode
+        mock_rh.get_top_results.assert_called_once_with(sample_results, 1)
 
     @patch("cdnbestip.cli.IPSourceManager")
     @patch("cdnbestip.cli.SpeedTestManager")

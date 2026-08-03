@@ -80,11 +80,6 @@ class TestSpeedTestToDNSWorkflow:
         mock_client = Mock()
         mock_cloudflare.return_value = mock_client
 
-        # Mock authentication
-        mock_user = Mock()
-        mock_user.email = "test@example.com"
-        mock_client.user.get.return_value = mock_user
-
         # Mock zone operations
         mock_zone = Mock()
         mock_zone.id = "zone123"
@@ -181,7 +176,7 @@ class TestSpeedTestToDNSWorkflow:
         import cloudflare
 
         mock_response = Mock()
-        mock_client.user.get.side_effect = cloudflare.AuthenticationError(
+        mock_client.zones.list.side_effect = cloudflare.AuthenticationError(
             message="Invalid token", response=mock_response, body=None
         )
 
@@ -210,11 +205,6 @@ class TestSpeedTestToDNSWorkflow:
         # Mock CloudFlare API with partial failure
         mock_client = Mock()
         mock_cloudflare.return_value = mock_client
-
-        # Mock authentication
-        mock_user = Mock()
-        mock_user.email = "test@example.com"
-        mock_client.user.get.return_value = mock_user
 
         # Mock zone operations
         mock_zone = Mock()
@@ -519,11 +509,6 @@ class TestErrorRecoveryWorkflows:
         mock_client = Mock()
         mock_cloudflare.return_value = mock_client
 
-        # Mock authentication success
-        mock_user = Mock()
-        mock_user.email = "test@example.com"
-        mock_client.user.get.return_value = mock_user
-
         # Mock zone operations
         mock_zone = Mock()
         mock_zone.id = "zone123"
@@ -654,11 +639,6 @@ class TestConcurrentOperationsWorkflow:
         """Test batch DNS operations workflow."""
         mock_client = Mock()
         mock_cloudflare.return_value = mock_client
-
-        # Mock authentication
-        mock_user = Mock()
-        mock_user.email = "test@example.com"
-        mock_client.user.get.return_value = mock_user
 
         # Mock zone operations
         mock_zone = Mock()

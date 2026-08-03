@@ -144,9 +144,9 @@ class TestDNSManagerProxy:
 
         # Mock Cloudflare client
         mock_client = Mock()
-        mock_user = Mock()
-        mock_user.email = "test@example.com"
-        mock_client.user.get.return_value = mock_user
+        mock_zones = Mock()
+        mock_zones.result = []
+        mock_client.zones.list.return_value = mock_zones
         mock_cloudflare.return_value = mock_client
 
         # Test authentication
@@ -172,9 +172,9 @@ class TestDNSManagerProxy:
 
         # Mock Cloudflare client
         mock_client = Mock()
-        mock_user = Mock()
-        mock_user.email = "test@example.com"
-        mock_client.user.get.return_value = mock_user
+        mock_zones = Mock()
+        mock_zones.result = []
+        mock_client.zones.list.return_value = mock_zones
         mock_cloudflare.return_value = mock_client
 
         # Test authentication

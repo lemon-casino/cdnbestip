@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import shlex
 import sys
 import time
 
@@ -991,9 +992,33 @@ class WorkflowOrchestrator:
                 filtered_results = valid_results
                 print("  ✓ No speed threshold applied, using all valid results")
 
+            # CFST also writes latency-tested candidates that were not sent
+            # through the download queue; those rows have 0 MB/s. Unless the
+            # user explicitly disabled download testing, never select one of
+            # those placeholder rows for DNS.
+            extended_args = shlex.split(self.config.extend_string or "")
+            if "-dd" not in extended_args:
+                measured_results = [result for result in filtered_results if result.speed > 0]
+                if not measured_results:
+                    print(
+                        "  ⚠️ No IP produced a positive download speed; "
+                        "DNS update will be skipped"
+                    )
+                    return []
+                if len(measured_results) != len(filtered_results):
+                    print(
+                        f"  ✓ Removed {len(filtered_results) - len(measured_results)} "
+                        "latency-only placeholder results"
+                    )
+                filtered_results = measured_results
+
             # Get top results
             if self.config.only_one:
-                top_results = filtered_results[:1]
+                # CFST writes all latency-tested IPs to the CSV, including
+                # candidates whose download speed is 0 when they were not in
+                # the download queue. Always rank before selecting one so
+                # --only does not accidentally choose the first slow entry.
+                top_results = self.results_handler.get_top_results(filtered_results, 1)
                 print("  ✓ Selected best result (--only mode)")
             elif self.config.quantity > 0:
                 top_results = self.results_handler.get_top_results(
@@ -1001,7 +1026,7 @@ class WorkflowOrchestrator:
                 )
                 print(f"  ✓ Selected top {len(top_results)} results")
             else:
-                top_results = filtered_results
+                top_results = self.results_handler.get_top_results(filtered_results)
                 print(f"  ✓ Using all {len(top_results)} qualifying results")
 
             # Display top results

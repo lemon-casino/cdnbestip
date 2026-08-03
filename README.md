@@ -293,6 +293,8 @@ Zone Types:
 获取 API 令牌：[CloudFlare Dashboard](https://dash.cloudflare.com/profile/api-tokens) -> `API Tokens` -> `Create Token`   
 获取 API 密钥：[CloudFlare Dashboard](https://dash.cloudflare.com/profile/api-tokens) -> `API Keys` -> `Global API Key`   
 
+> 使用 API 令牌更新 DNS 时，需要对目标域名授予 `Zone Read` 和 `DNS Write` 权限。程序会按 `-d/--domain` 查询该域名，不再调用需要额外用户权限的 `/user` 接口。
+
 ### 代理配置
 
 工具支持通过代理服务器进行 Cloudflare API 调用和 IP 列表下载。支持的代理类型：

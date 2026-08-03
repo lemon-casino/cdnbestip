@@ -30,10 +30,10 @@ class TestDNSAuthentication:
             mock_client = Mock()
             mock_cloudflare.return_value = mock_client
 
-            # Mock successful user.get() call for token validation
-            mock_user = Mock()
-            mock_user.email = "test@example.com"
-            mock_client.user.get.return_value = mock_user
+            # Mock successful zone lookup for token validation
+            mock_zones = Mock()
+            mock_zones.result = []
+            mock_client.zones.list.return_value = mock_zones
 
             # Authenticate
             dns_manager.authenticate()
@@ -44,7 +44,7 @@ class TestDNSAuthentication:
             assert dns_manager.is_authenticated()
 
             # Verify validation call was made
-            mock_client.user.get.assert_called_once()
+            mock_client.zones.list.assert_called_once_with(per_page=1)
 
     def test_authenticate_with_api_key_email_success(self):
         """Test successful authentication with API key and email."""
@@ -116,7 +116,7 @@ class TestDNSAuthentication:
 
             # Mock authentication error during validation
             mock_response = Mock()
-            mock_client.user.get.side_effect = cloudflare.AuthenticationError(
+            mock_client.zones.list.side_effect = cloudflare.AuthenticationError(
                 message="Invalid token", response=mock_response, body=None
             )
 
@@ -161,19 +161,32 @@ class TestDNSAuthentication:
             mock_client = Mock()
             mock_cloudflare.return_value = mock_client
 
-            # Mock successful user.get() call for token validation
-            mock_user = Mock()
-            mock_user.email = "test@example.com"
-            mock_client.user.get.return_value = mock_user
+            # Mock successful zone lookup for token validation
+            mock_zones = Mock()
+            mock_zones.result = []
+            mock_client.zones.list.return_value = mock_zones
 
             # Authenticate
             dns_manager.authenticate()
 
             # Verify client was created with token (not key/email)
             mock_cloudflare.assert_called_once_with(api_token="test_token_123")
-            mock_client.user.get.assert_called_once()
-            # zones.list should not be called for token auth
-            mock_client.zones.list.assert_not_called()
+            mock_client.zones.list.assert_called_once_with(per_page=1)
+
+    def test_api_token_validates_configured_zone(self):
+        """Token validation must use the configured zone, not /user."""
+        self.config.cloudflare_api_token = "test_token_123"
+        self.config.domain = "example.com"
+
+        dns_manager = DNSManager(self.config)
+        mock_client = Mock()
+        mock_zones = Mock()
+        mock_zones.result = [Mock(name="example.com")]
+        mock_client.zones.list.return_value = mock_zones
+
+        dns_manager._validate_credentials_with_client(mock_client)
+
+        mock_client.zones.list.assert_called_once_with(name="example.com", per_page=1)
 
     def test_validate_credentials_no_client(self):
         """Test credential validation when client is not initialized."""
@@ -190,13 +203,13 @@ class TestDNSAuthentication:
         dns_manager = DNSManager(self.config)
 
         mock_client = Mock()
-        mock_user = Mock()
-        mock_user.email = "test@example.com"
-        mock_client.user.get.return_value = mock_user
+        mock_zones = Mock()
+        mock_zones.result = []
+        mock_client.zones.list.return_value = mock_zones
 
         # Should not raise any exception
         dns_manager._validate_credentials_with_client(mock_client)
-        mock_client.user.get.assert_called_once()
+        mock_client.zones.list.assert_called_once_with(per_page=1)
 
     def test_validate_credentials_with_client_key_success(self):
         """Test credential validation with key/email using specific client."""

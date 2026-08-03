@@ -114,12 +114,32 @@ class DNSManager:
             AuthenticationError: If credentials are invalid
         """
         try:
-            # Make a simple API call to validate credentials
-            # Using user.get() for token auth or zones.list() for key auth
+            # Validate against the permissions needed by this application.
+            # Calling /user requires a user-level permission that a
+            # least-privilege DNS token normally does not have. Listing the
+            # configured zone validates both token access and Zone Read,
+            # which is required before DNS records can be updated.
             if self.config.cloudflare_api_token:
-                # For token auth, verify token validity
-                user_info = client.user.get()
-                logger.debug(f"Authenticated as user: {user_info.email}")
+                domain = getattr(self.config, "domain", None)
+                if domain:
+                    zones = client.zones.list(name=domain, per_page=1)
+                else:
+                    zones = client.zones.list(per_page=1)
+
+                zone_results = getattr(zones, "result", None)
+                try:
+                    zone_count = len(zone_results or [])
+                except TypeError:
+                    zone_count = 0
+                if domain and zone_count == 0:
+                    raise AuthenticationError(
+                        f"API token cannot access Cloudflare zone '{domain}'. "
+                        "Grant Zone Read and DNS Write permissions for this zone."
+                    )
+                logger.debug(
+                    "API token validation successful%s",
+                    f" for zone {domain}" if domain else "",
+                )
             else:
                 # For key auth, try to list zones (minimal permission required)
                 zones = client.zones.list(per_page=1)
@@ -129,6 +149,8 @@ class DNSManager:
             raise AuthenticationError(f"Invalid credentials: {e}") from e
         except cloudflare.PermissionDeniedError as e:
             raise AuthenticationError(f"Insufficient permissions: {e}") from e
+        except AuthenticationError:
+            raise
         except Exception as e:
             raise AuthenticationError(f"Credential validation failed: {e}") from e
 

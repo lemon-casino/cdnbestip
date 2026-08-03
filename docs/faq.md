@@ -103,7 +103,7 @@ A:
 2. 进入 **My Profile** → **API Tokens**
 3. 点击 **Create Token**
 4. 选择 **Edit zone DNS** 模板
-5. 配置权限并创建令牌
+5. 为目标域名授予 `Zone Read` 和 `DNS Write` 权限并创建令牌
 
 ### Q: 认证失败怎么办？
 
@@ -113,6 +113,8 @@ A: 检查以下几点：
 2. 令牌是否有足够的权限
 3. 令牌是否已过期
 4. 域名是否在你的 CloudFlare 账号下
+
+> 程序会使用 `-d/--domain` 查询目标 Zone，因此 API 令牌至少需要 `Zone Read` 和 `DNS Write` 权限。
 
 ## IP 数据源相关
 
