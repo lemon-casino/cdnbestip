@@ -133,6 +133,7 @@ class TestConfig:
             "GC",
             "AWS",
             "CT",
+            "all",
         ]:
             config = Config(ip_data_url=source)
             assert config.ip_data_url == source

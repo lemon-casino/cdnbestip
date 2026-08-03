@@ -22,7 +22,7 @@ class TestIPSourceManager:
     def test_get_available_sources(self):
         """Test getting list of available IP sources."""
         sources = self.manager.get_available_sources()
-        expected_sources = ["cf", "as13335", "as209242", "gc", "ct", "aws"]
+        expected_sources = ["cf", "as13335", "as209242", "gc", "ct", "aws", "all"]
         assert all(source in sources for source in expected_sources)
 
     def test_get_source_info_valid_source(self):
@@ -37,6 +37,10 @@ class TestIPSourceManager:
             assert info["type"] == "text"
             assert info["ip_version"] == 4
             assert info["url"] == f"https://asn.ipinfo.app/api/text/list/{asn}"
+
+        all_info = self.manager.get_source_info("all")
+        assert all_info["requires_custom_url"] is True
+        assert all_info["ip_version"] == 4
 
     def test_get_source_info_invalid_source(self):
         """Test getting information for an invalid source."""
@@ -106,6 +110,53 @@ class TestIPSourceManager:
             with open(temp_path) as f:
                 lines = f.read().strip().splitlines()
             assert lines == ["104.16.0.0/12", "1.1.1.0/24"]
+        finally:
+            Path(temp_path).unlink(missing_ok=True)
+
+    @patch("requests.get")
+    def test_download_all_sources_merges_ipv4_and_removes_duplicates(self, mock_get):
+        """Test merging all predefined sources with IPv4 filtering and deduplication."""
+        self.config.cdn_url = None
+        responses = []
+
+        for text in [
+            "1.1.1.0/24\n2.2.2.0/24\n2606:4700::/32",
+            "2.2.2.0/24\n3.3.3.0/24\n2606:4700:1::/48",
+            "3.3.3.0/24\n4.4.4.0/24\n2606:4700:2::/48",
+        ]:
+            response = Mock()
+            response.text = text
+            response.raise_for_status.return_value = None
+            responses.append(response)
+
+        for payload in [
+            {"addresses": ["4.4.4.0/24", "5.5.5.0/24", "2606:4700:3::/48"]},
+            {"CLOUDFRONT_GLOBAL_IP_LIST": ["5.5.5.0/24", "6.6.6.0/24", "2606:4700:4::/48"]},
+            {"prefixes": [{"ip_prefix": "6.6.6.0/24"}, {"ip_prefix": "7.7.7.0/24"}]},
+        ]:
+            response = Mock()
+            response.json.return_value = payload
+            response.raise_for_status.return_value = None
+            responses.append(response)
+
+        mock_get.side_effect = responses
+
+        with tempfile.NamedTemporaryFile(mode="w", delete=False) as temp_file:
+            temp_path = temp_file.name
+
+        try:
+            self.manager.download_ip_list("all", temp_path, force_refresh=True)
+            with open(temp_path) as f:
+                lines = f.read().strip().splitlines()
+            assert lines == [
+                "1.1.1.0/24",
+                "2.2.2.0/24",
+                "3.3.3.0/24",
+                "4.4.4.0/24",
+                "5.5.5.0/24",
+                "6.6.6.0/24",
+                "7.7.7.0/24",
+            ]
         finally:
             Path(temp_path).unlink(missing_ok=True)
 

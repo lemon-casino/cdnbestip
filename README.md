@@ -198,7 +198,7 @@ Speed Test Settings:
                         Repeat the complete workflow every N minutes (first run starts immediately)
 
 IP Data Source:
-  -i, --ip-url SOURCE    IP data source: cf, as13335, as209242, gc, ct, aws, or custom URL
+  -i, --ip-url SOURCE    IP data source: cf, as13335, as209242, gc, ct, aws, all, or custom URL
 
 Operations:
   -r, --refresh         Force refresh result.csv file
@@ -232,6 +232,7 @@ IP Data Sources:
   gc   - GCore IPs  
   ct   - CloudFront IPs
   aws  - Amazon AWS IPs
+  all  - Merge all predefined IPv4 sources and remove duplicates (requires -u)
   <url> - Custom IP data URL
 
 Zone Types:
@@ -259,7 +260,7 @@ Zone Types:
 > `-S` / `--schedule`:         内置定时执行间隔，单位分钟（首次立即执行）   
 
 **IP 数据源：**
-> `-i` / `--ip-url`:            IP 数据源：cf, as13335, as209242, gc, ct, aws 或自定义 URL
+> `-i` / `--ip-url`:            IP 数据源：cf, as13335, as209242, gc, ct, aws, all 或自定义 URL
 
 **操作选项：**
 > `-r` / `--refresh`:          强制刷新 result.csv 文件    
@@ -327,6 +328,7 @@ cdnbestip -d example.com -p cf -s 2 -n
 | `gc` | GCore | `https://hk2-speedtest.tools.gcore.com/speedtest-backend/garbage.php?ckSize=100` | 否 |
 | `ct` | CloudFront | 无 | **是** |
 | `aws` | Amazon AWS | 无 | **是** |
+| `all` | 全部预定义 IPv4 源（自动去重） | 无 | **是** |
 | 自定义 URL | 自定义 | 无 | **是** |
 
 ### 使用示例
@@ -343,6 +345,9 @@ cdnbestip -i as13335 -d example.com -p cf -s 2 -n
 
 # AS209242 IPv4 宣告网段
 cdnbestip -i as209242 -d example.com -p cf -s 2 -n
+
+# 合并全部 IPv4 数据源并去重（必须指定统一测速 URL）
+cdnbestip -i all -u https://example.com/test -d example.com -p cf -s 2 -n
 
 # GCore IP 源 - 自动使用 GCore 测试端点
 cdnbestip -i gc -d example.com -p gc -s 2 -n

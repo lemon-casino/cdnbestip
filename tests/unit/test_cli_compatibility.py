@@ -187,7 +187,7 @@ class TestCLICompatibility:
     def test_ip_data_source_compatibility(self):
         """Test that IP data sources match shell script behavior."""
         # Test predefined sources
-        predefined_sources = ["cf", "as13335", "as209242", "gc", "ct", "aws"]
+        predefined_sources = ["cf", "as13335", "as209242", "gc", "ct", "aws", "all"]
 
         for source in predefined_sources:
             with patch("sys.argv", ["cdnbestip", "-i", source]):
@@ -446,7 +446,7 @@ class TestFeatureParityValidation:
 
     def test_all_ip_sources_supported(self):
         """Test that all IP sources from shell script are supported."""
-        shell_sources = ["cf", "as13335", "as209242", "gc", "ct", "aws"]
+        shell_sources = ["cf", "as13335", "as209242", "gc", "ct", "aws", "all"]
 
         for source in shell_sources:
             with patch("sys.argv", ["cdnbestip", "-i", source]):

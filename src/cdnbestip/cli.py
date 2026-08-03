@@ -67,6 +67,7 @@ IP Data Sources:
   gc   - GCore IPs
   ct   - CloudFront IPs
   aws  - Amazon AWS IPs
+  all  - Merge all predefined IPv4 sources and remove duplicates (requires -u)
   <url> - Custom IP data URL
 
 Zone Types:
@@ -147,7 +148,7 @@ Zone Types:
         "-i",
         "--ip-url",
         metavar="SOURCE",
-        help="IP data source: cf, as13335, as209242, gc, ct, aws, or custom URL",
+        help="IP data source: cf, as13335, as209242, gc, ct, aws, all, or custom URL",
     )
 
     # Operational flags
@@ -336,7 +337,7 @@ def validate_arguments(args: argparse.Namespace) -> None:
 
         # Validate IP data URL if it's not a predefined source
         if hasattr(args, "ip_url") and args.ip_url:
-            predefined_sources = ["cf", "as13335", "as209242", "gc", "aws", "ct"]
+            predefined_sources = ["cf", "as13335", "as209242", "gc", "aws", "ct", "all"]
             if args.ip_url.lower() not in predefined_sources:
                 if not _is_valid_url(args.ip_url):
                     errors.append(
@@ -344,7 +345,7 @@ def validate_arguments(args: argparse.Namespace) -> None:
                             "Invalid IP data URL format",
                             field="ip_url",
                             value=args.ip_url,
-                            expected_format="cf, as13335, as209242, gc, aws, ct, or https://example.com/ips.txt",
+                            expected_format="cf, as13335, as209242, gc, aws, ct, all, or https://example.com/ips.txt",
                         )
                     )
 
@@ -483,6 +484,7 @@ def print_configuration_summary(config: Config) -> None:
             "gc": "GCore",
             "ct": "CloudFront",
             "aws": "Amazon AWS",
+            "all": "All predefined IPv4 sources",
         }
         source_name = source_names.get(config.ip_data_url.lower(), config.ip_data_url)
         print(f"  ✓ Source: {source_name}")
@@ -613,7 +615,7 @@ class WorkflowOrchestrator:
         ip_source = self.config.ip_data_url or "cf"  # Default to CloudFlare
 
         # Generate IP file name based on source
-        if ip_source in ["cf", "as13335", "as209242", "gc", "ct", "aws"]:
+        if ip_source in ["cf", "as13335", "as209242", "gc", "ct", "aws", "all"]:
             ip_file = f"ip_list_{ip_source}.txt"
         else:
             # For custom URLs, use default name
@@ -638,7 +640,7 @@ class WorkflowOrchestrator:
                         raise IPSourceError(
                             f"IP source '{ip_source}' not found or unavailable",
                             source=ip_source,
-                            suggestion="Try using a different IP source: cf, as13335, as209242, gc, aws, or ct",
+                            suggestion="Try using a different IP source: cf, as13335, as209242, gc, aws, ct, or all",
                         ) from e
                     else:
                         raise IPSourceError(

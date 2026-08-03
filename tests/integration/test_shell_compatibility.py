@@ -111,7 +111,7 @@ print(f"EMAIL: {config.CLOUDFLARE_EMAIL}")
     def test_ip_source_compatibility(self):
         """Test IP source parameter compatibility."""
         # Test predefined sources
-        for source in ["cf", "as13335", "as209242", "gc", "ct", "aws"]:
+        for source in ["cf", "as13335", "as209242", "gc", "ct", "aws", "all"]:
             result = subprocess.run(
                 [
                     sys.executable,
@@ -541,7 +541,7 @@ class TestFeatureCompatibilityValidation:
         help_output = help_result.stdout
 
         # Should mention all IP sources
-        ip_sources = ["cf", "as13335", "as209242", "gc", "ct", "aws"]
+        ip_sources = ["cf", "as13335", "as209242", "gc", "ct", "aws", "all"]
         for source in ip_sources:
             assert source in help_output, f"Missing IP source: {source}"
 

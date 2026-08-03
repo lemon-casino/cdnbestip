@@ -2,6 +2,8 @@
 
 import ipaddress
 import json
+import logging
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -9,6 +11,8 @@ import requests
 
 from .config import Config
 from .exceptions import IPSourceError
+
+logger = logging.getLogger(__name__)
 
 
 class IPSourceManager:
@@ -64,7 +68,17 @@ class IPSourceManager:
             "description": "AWS IP ranges",
             "requires_custom_url": True,  # Requires -u parameter
         },
+        "all": {
+            "name": "All IP Sources",
+            "type": "multi",
+            "ip_version": 4,
+            "description": "Merged IPv4 ranges from all predefined sources",
+            "requires_custom_url": True,  # A unified test URL is required
+            "default_test_url": None,
+        },
     }
+
+    ALL_SOURCE_KEYS = ("cf", "as13335", "as209242", "gc", "ct", "aws")
 
     def __init__(self, config: Config):
         """Initialize IP source manager with configuration."""
@@ -78,31 +92,40 @@ class IPSourceManager:
 
     def get_source_info(self, source: str) -> dict[str, Any]:
         """Get information about a specific IP source."""
-        if source not in self.IP_SOURCES:
+        source_key = source.lower() if isinstance(source, str) else source
+        if source_key not in self.IP_SOURCES:
             raise IPSourceError(f"Unknown IP source: {source}")
-        return self.IP_SOURCES[source].copy()
+        return self.IP_SOURCES[source_key].copy()
 
     def get_default_test_url(self, source: str) -> str | None:
         """Get default test URL for a specific IP source."""
-        if source not in self.IP_SOURCES:
+        source_key = source.lower() if isinstance(source, str) else source
+        if source_key not in self.IP_SOURCES:
             return None
 
-        source_info = self.IP_SOURCES[source]
+        source_info = self.IP_SOURCES[source_key]
         return source_info.get("default_test_url")
 
     def requires_custom_url(self, source: str) -> bool:
         """Check if IP source requires custom URL (-u parameter)."""
-        if source not in self.IP_SOURCES:
+        source_key = source.lower() if isinstance(source, str) else source
+        if source_key not in self.IP_SOURCES:
             return True  # Unknown sources require custom URL
 
-        source_info = self.IP_SOURCES[source]
+        source_info = self.IP_SOURCES[source_key]
         return source_info.get("requires_custom_url", False)
 
     def download_ip_list(self, source: str, output_file: str, force_refresh: bool = False) -> None:
         """Download IP list from specified source and save to file."""
-        if source in self.IP_SOURCES:
+        source_key = source.lower() if isinstance(source, str) else source
+
+        if source_key == "all":
+            self._download_all_sources(output_file, force_refresh)
+            return
+
+        if source_key in self.IP_SOURCES:
             # Use predefined source
-            source_info = self.IP_SOURCES[source]
+            source_info = self.IP_SOURCES[source_key]
             url = source_info["url"]
 
             # Apply CDN URL if configured and not using proxy
@@ -114,7 +137,7 @@ class IPSourceManager:
             ):
                 url = self._apply_cdn_url(url)
 
-            self._download_from_source(source_info, url, output_file, force_refresh, source)
+            self._download_from_source(source_info, url, output_file, force_refresh, source_key)
         else:
             # Treat as custom URL
             if not source.startswith(("http://", "https://")):
@@ -133,6 +156,35 @@ class IPSourceManager:
             # Assume text format for custom URLs
             source_info = {"type": "text", "name": "Custom"}
             self._download_from_source(source_info, url, output_file, force_refresh, source)
+
+    def _download_all_sources(self, output_file: str, force_refresh: bool = False) -> None:
+        """Download all predefined sources, merge IPv4 entries, and remove duplicates."""
+        merged: list[str] = []
+        seen: set[str] = set()
+        errors: list[str] = []
+
+        with tempfile.TemporaryDirectory(prefix="cdnbestip-all-") as temp_dir:
+            for source in self.ALL_SOURCE_KEYS:
+                source_file = Path(temp_dir) / f"{source}.txt"
+                try:
+                    self.download_ip_list(source, str(source_file), force_refresh=force_refresh)
+                    source_lines = source_file.read_text(encoding="utf-8").splitlines()
+                except (IPSourceError, OSError) as exc:
+                    errors.append(f"{source}: {exc}")
+                    logger.warning("Skipping IP source %s while building all sources: %s", source, exc)
+                    continue
+
+                for entry in self._filter_ip_list(source_lines, ip_version=4):
+                    if entry not in seen:
+                        seen.add(entry)
+                        merged.append(entry)
+
+        if not merged:
+            details = "; ".join(errors) or "No predefined source returned IPv4 entries"
+            raise IPSourceError(f"Failed to build merged IP source: {details}", source="all")
+
+        self._save_ip_list(merged, output_file)
+        self._save_to_cache(merged, self._get_cache_file("all"))
 
     def _apply_cdn_url(self, url: str) -> str:
         """Apply CDN URL prefix if configured."""
@@ -204,15 +256,23 @@ class IPSourceManager:
         for line in lines:
             line = line.strip()
             if line and not line.startswith("#"):  # Skip empty lines and comments
-                if ip_version is not None:
-                    try:
-                        if ipaddress.ip_network(line, strict=False).version != ip_version:
-                            continue
-                    except ValueError:
-                        continue
                 ip_list.append(line)
 
-        return ip_list
+        return self._filter_ip_list(ip_list, ip_version)
+
+    def _filter_ip_list(self, ip_list: list[str], ip_version: int | None = None) -> list[str]:
+        """Filter IP addresses or networks by IP version."""
+        if ip_version is None:
+            return ip_list
+
+        filtered: list[str] = []
+        for entry in ip_list:
+            try:
+                if ipaddress.ip_network(entry, strict=False).version == ip_version:
+                    filtered.append(entry)
+            except ValueError:
+                continue
+        return filtered
 
     def _process_json_response(
         self, data: dict[str, Any], source_info: dict[str, Any]
