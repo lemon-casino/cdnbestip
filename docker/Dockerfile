@@ -35,6 +35,7 @@ RUN python -m build --wheel
 #####################################################################################
 FROM python:3.13-alpine
 LABEL maintainer="Jetsung Chan<i@jetsung.com>"
+ARG TARGETARCH
 
 WORKDIR /app
 
@@ -46,9 +47,15 @@ COPY README.md /app/README.md
 
 RUN mkdir ~/.cache
 
-RUN pip install /app/*.whl && \
-    rm -rf /app/*.whl && \
-    rm -rf /var/cache/apk/*
+RUN set -eux; \
+    if [ "${TARGETARCH}" = "386" ]; then \
+        apk add --no-cache --virtual .build-deps cargo rust gcc musl-dev; \
+    fi; \
+    pip install /app/*.whl; \
+    if [ "${TARGETARCH}" = "386" ]; then \
+        apk del .build-deps; \
+    fi; \
+    rm -rf /app/*.whl /var/cache/apk/*
 
 RUN printf "%b" '#!'"/usr/bin/env sh\n \
 if [ \"\$1\" = \"daemon\" ];  then \n \
