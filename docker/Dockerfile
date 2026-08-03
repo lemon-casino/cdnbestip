@@ -20,6 +20,8 @@ RUN set -eux; \
         'https://api.github.com/repos/XIU2/CloudflareSpeedTest/releases/latest' \
         | jq -er --arg asset "${release_asset}" '.assets[] | select(.name == $asset) | .browser_download_url')"; \
     curl -fsSL "${download_url}" | tar -xzvf -; \
+    cp "/app/cfst_linux_${asset_arch}/cfst" /app/cfst; \
+    chmod +x /app/cfst; \
     test -x /app/cfst
 
 #####################################################################################
