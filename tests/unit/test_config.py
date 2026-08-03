@@ -120,7 +120,20 @@ class TestConfig:
 
     def test_predefined_ip_sources_valid(self):
         """Test that predefined IP sources don't require URL validation."""
-        for source in ["cf", "gc", "aws", "ct", "CF", "GC", "AWS", "CT"]:
+        for source in [
+            "cf",
+            "as13335",
+            "as209242",
+            "gc",
+            "aws",
+            "ct",
+            "CF",
+            "AS13335",
+            "AS209242",
+            "GC",
+            "AWS",
+            "CT",
+        ]:
             config = Config(ip_data_url=source)
             assert config.ip_data_url == source
 

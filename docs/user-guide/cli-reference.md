@@ -121,6 +121,8 @@ cdnbestip -d example.com -p cf -s 2 -u https://speed.cloudflare.com/__down?bytes
 | 值 | 提供商 | 自动配置 | 推荐区域 |
 |----|--------|----------|----------|
 | `cf` | CloudFlare | ✅ | 全球 |
+| `as13335` | Cloudflare AS13335 IPv4 宣告网段 | ✅ | 全球 |
+| `as209242` | Cloudflare AS209242 IPv4 宣告网段 | ✅ | 全球 |
 | `gc` | GCore | ✅ | 亚太 |
 | `ct` | CloudFront | ❌ | 全球 |
 | `aws` | Amazon AWS | ❌ | 全球 |
@@ -130,6 +132,12 @@ cdnbestip -d example.com -p cf -s 2 -u https://speed.cloudflare.com/__down?bytes
 ```bash
 # 使用 CloudFlare IP
 cdnbestip -i cf -d example.com -p cf -s 2 -n
+
+# 使用 Cloudflare AS13335 IPv4 宣告网段
+cdnbestip -i as13335 -d example.com -p cf -s 2 -n
+
+# 使用 Cloudflare AS209242 IPv4 宣告网段
+cdnbestip -i as209242 -d example.com -p cf -s 2 -n
 
 # 使用 GCore IP
 cdnbestip -i gc -d example.com -p gc -s 2 -n

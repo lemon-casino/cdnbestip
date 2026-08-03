@@ -22,7 +22,7 @@ class TestIPSourceManager:
     def test_get_available_sources(self):
         """Test getting list of available IP sources."""
         sources = self.manager.get_available_sources()
-        expected_sources = ["cf", "gc", "ct", "aws"]
+        expected_sources = ["cf", "as13335", "as209242", "gc", "ct", "aws"]
         assert all(source in sources for source in expected_sources)
 
     def test_get_source_info_valid_source(self):
@@ -31,6 +31,12 @@ class TestIPSourceManager:
         assert info["name"] == "CloudFlare"
         assert info["url"] == "https://www.cloudflare.com/ips-v4"
         assert info["type"] == "text"
+
+        for source, asn in [("as13335", "AS13335"), ("as209242", "AS209242")]:
+            info = self.manager.get_source_info(source)
+            assert info["type"] == "text"
+            assert info["ip_version"] == 4
+            assert info["url"] == f"https://asn.ipinfo.app/api/text/list/{asn}"
 
     def test_get_source_info_invalid_source(self):
         """Test getting information for an invalid source."""
@@ -43,6 +49,12 @@ class TestIPSourceManager:
         result = self.manager._process_text_response(text_response)
         expected = ["192.168.1.0/24", "192.168.2.0/24", "10.0.0.0/8"]
         assert result == expected
+
+    def test_process_text_response_ipv4_only(self):
+        """Test filtering an AS source down to IPv4 prefixes."""
+        text_response = "104.16.0.0/12\n2606:4700::/32\n1.1.1.0/24"
+        result = self.manager._process_text_response(text_response, ip_version=4)
+        assert result == ["104.16.0.0/12", "1.1.1.0/24"]
 
     def test_process_json_response_simple_array(self):
         """Test processing JSON response with simple array."""
@@ -75,6 +87,25 @@ class TestIPSourceManager:
                 content = f.read()
             assert "192.168.1.0/24" in content
             assert "192.168.2.0/24" in content
+        finally:
+            Path(temp_path).unlink(missing_ok=True)
+
+    @patch("requests.get")
+    def test_download_asn_source_filters_ipv6(self, mock_get):
+        """Test that built-in ASN sources only save IPv4 prefixes."""
+        mock_response = Mock()
+        mock_response.text = "104.16.0.0/12\n2606:4700::/32\n1.1.1.0/24"
+        mock_response.raise_for_status.return_value = None
+        mock_get.return_value = mock_response
+
+        with tempfile.NamedTemporaryFile(mode="w", delete=False) as temp_file:
+            temp_path = temp_file.name
+
+        try:
+            self.manager.download_ip_list("as13335", temp_path, force_refresh=True)
+            with open(temp_path) as f:
+                lines = f.read().strip().splitlines()
+            assert lines == ["104.16.0.0/12", "1.1.1.0/24"]
         finally:
             Path(temp_path).unlink(missing_ok=True)
 

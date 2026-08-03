@@ -198,7 +198,7 @@ Speed Test Settings:
                         Repeat the complete workflow every N minutes (first run starts immediately)
 
 IP Data Source:
-  -i, --ip-url SOURCE    IP data source: cf, gc, ct, aws, or custom URL
+  -i, --ip-url SOURCE    IP data source: cf, as13335, as209242, gc, ct, aws, or custom URL
 
 Operations:
   -r, --refresh         Force refresh result.csv file
@@ -227,6 +227,8 @@ Examples:
 
 IP Data Sources:
   cf   - CloudFlare IPs
+  as13335 - Cloudflare AS13335 IPv4 prefixes
+  as209242 - Cloudflare AS209242 IPv4 prefixes
   gc   - GCore IPs  
   ct   - CloudFront IPs
   aws  - Amazon AWS IPs
@@ -257,7 +259,7 @@ Zone Types:
 > `-S` / `--schedule`:         内置定时执行间隔，单位分钟（首次立即执行）   
 
 **IP 数据源：**
-> `-i` / `--ip-url`:            IP 数据源：cf, gc, ct, aws 或自定义 URL   
+> `-i` / `--ip-url`:            IP 数据源：cf, as13335, as209242, gc, ct, aws 或自定义 URL
 
 **操作选项：**
 > `-r` / `--refresh`:          强制刷新 result.csv 文件    
@@ -320,6 +322,8 @@ cdnbestip -d example.com -p cf -s 2 -n
 | IP 源 | 提供商 | 自动测试端点 | 需要 `-u` 参数？ |
 |-------|--------|-------------|-----------------|
 | `cf` | CloudFlare | `https://cf.xiu2.xyz/url` | 否 |
+| `as13335` | Cloudflare AS13335 IPv4 宣告网段 | `https://cf.xiu2.xyz/url` | 否 |
+| `as209242` | Cloudflare AS209242 IPv4 宣告网段 | `https://cf.xiu2.xyz/url` | 否 |
 | `gc` | GCore | `https://hk2-speedtest.tools.gcore.com/speedtest-backend/garbage.php?ckSize=100` | 否 |
 | `ct` | CloudFront | 无 | **是** |
 | `aws` | Amazon AWS | 无 | **是** |
@@ -333,6 +337,12 @@ cdnbestip -d example.com -p cf -s 2 -n
 
 # CloudFlare IP 源 - 自动使用 CF 测试端点
 cdnbestip -i cf -d example.com -p cf -s 2 -n
+
+# AS13335 IPv4 宣告网段
+cdnbestip -i as13335 -d example.com -p cf -s 2 -n
+
+# AS209242 IPv4 宣告网段
+cdnbestip -i as209242 -d example.com -p cf -s 2 -n
 
 # GCore IP 源 - 自动使用 GCore 测试端点
 cdnbestip -i gc -d example.com -p gc -s 2 -n

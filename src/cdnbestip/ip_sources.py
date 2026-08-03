@@ -1,5 +1,6 @@
 """IP data source management for downloading IP lists from various CDN providers."""
 
+import ipaddress
 import json
 from pathlib import Path
 from typing import Any
@@ -20,6 +21,22 @@ class IPSourceManager:
             "url": "https://www.cloudflare.com/ips-v4",
             "type": "text",
             "description": "CloudFlare IPv4 ranges",
+            "default_test_url": "",  # CloudFlare default test endpoint
+        },
+        "as13335": {
+            "name": "Cloudflare AS13335",
+            "url": "https://asn.ipinfo.app/api/text/list/AS13335",
+            "type": "text",
+            "ip_version": 4,
+            "description": "Cloudflare AS13335 announced IPv4 prefixes",
+            "default_test_url": "",  # CloudFlare default test endpoint
+        },
+        "as209242": {
+            "name": "Cloudflare AS209242",
+            "url": "https://asn.ipinfo.app/api/text/list/AS209242",
+            "type": "text",
+            "ip_version": 4,
+            "description": "Cloudflare Spectrum/BYOIP AS209242 announced IPv4 prefixes",
             "default_test_url": "",  # CloudFlare default test endpoint
         },
         "gc": {
@@ -162,7 +179,7 @@ class IPSourceManager:
 
             # Process based on source type
             if source_info["type"] == "text":
-                ip_list = self._process_text_response(response.text)
+                ip_list = self._process_text_response(response.text, source_info.get("ip_version"))
             elif source_info["type"] == "json":
                 ip_list = self._process_json_response(response.json(), source_info)
             else:
@@ -179,7 +196,7 @@ class IPSourceManager:
         except (json.JSONDecodeError, KeyError) as e:
             raise IPSourceError(f"Failed to parse response from {url}: {e}") from e
 
-    def _process_text_response(self, text: str) -> list[str]:
+    def _process_text_response(self, text: str, ip_version: int | None = None) -> list[str]:
         """Process plain text response containing IP addresses/ranges."""
         lines = text.strip().split("\n")
         ip_list = []
@@ -187,6 +204,12 @@ class IPSourceManager:
         for line in lines:
             line = line.strip()
             if line and not line.startswith("#"):  # Skip empty lines and comments
+                if ip_version is not None:
+                    try:
+                        if ipaddress.ip_network(line, strict=False).version != ip_version:
+                            continue
+                    except ValueError:
+                        continue
                 ip_list.append(line)
 
         return ip_list

@@ -154,7 +154,7 @@ class Config:
 
         # Validate IP data URL (if it's not a predefined source)
         if self.ip_data_url:
-            predefined_sources = ["cf", "gc", "aws", "ct"]
+            predefined_sources = ["cf", "as13335", "as209242", "gc", "aws", "ct"]
             if self.ip_data_url.lower() not in predefined_sources:
                 if not self._is_valid_url(self.ip_data_url):
                     raise ConfigurationError(f"Invalid IP data URL: {self.ip_data_url}")
