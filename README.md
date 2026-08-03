@@ -326,9 +326,9 @@ cdnbestip -d example.com -p cf -s 2 -n
 
 | IP 源 | 提供商 | 自动测试端点 | 需要 `-u` 参数？ |
 |-------|--------|-------------|-----------------|
-| `cf` | CloudFlare | `https://speed.cloudflare.com/__down?bytes=104857600` | 否 |
-| `as13335` | Cloudflare AS13335 IPv4 宣告网段 | `https://speed.cloudflare.com/__down?bytes=104857600` | 否 |
-| `as209242` | Cloudflare AS209242 IPv4 宣告网段 | `https://speed.cloudflare.com/__down?bytes=104857600` | 否 |
+| `cf` | CloudFlare | `https://cf.xiu2.xyz/url` | 否 |
+| `as13335` | Cloudflare AS13335 IPv4 宣告网段 | `https://cf.xiu2.xyz/url` | 否 |
+| `as209242` | Cloudflare AS209242 IPv4 宣告网段 | `https://cf.xiu2.xyz/url` | 否 |
 | `gc` | GCore | `https://hk2-speedtest.tools.gcore.com/speedtest-backend/garbage.php?ckSize=100` | 否 |
 | `ct` | CloudFront | `https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip` | 否 |
 | `aws` | Amazon AWS | 无 | **是** |
@@ -392,14 +392,11 @@ cdnbestip -t YOUR_API_TOKEN -d example.com -p cf -s 2 -n -o
 #### [CloudFlare](https://www.cloudflare.com/)
 
 ```bash
-# CloudFlare 官方测试端点
-https://speed.cloudflare.com/__down?bytes=104857600
-
-# 旧版第三方 CloudFlare 测试端点（仍可通过 -u 手动指定）
+# CloudflareSpeedTest 兼容的 CloudFlare 测试端点
 https://cf.xiu2.xyz/url
 ```
 
-> `bytes` 为文件大小。`104857600` 为 `100MB`。
+> `speed.cloudflare.com/__down` 是 Cloudflare 官方测速接口，但通过候选 IP 直接请求时可能返回 HTTP 403，不建议作为 CloudflareSpeedTest 的 `-u` 地址。
 
 #### [GCore](https://gcore.com/)
 

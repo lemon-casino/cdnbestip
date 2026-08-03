@@ -106,7 +106,7 @@ cdnbestip -d example.com -p cf -s 2 -P 80 -n
 cdnbestip -d example.com -p cf -s 2 -q 3 -n
 
 # 自定义测试 URL
-cdnbestip -d example.com -p cf -s 2 -u https://speed.cloudflare.com/__down?bytes=50000000 -n
+cdnbestip -d example.com -p cf -s 2 -u https://cf.xiu2.xyz/url -n
 ```
 
 ## IP 数据源

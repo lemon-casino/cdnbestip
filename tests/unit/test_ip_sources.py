@@ -41,9 +41,8 @@ class TestIPSourceManager:
         all_info = self.manager.get_source_info("all")
         assert all_info["requires_custom_url"] is False
         assert all_info["ip_version"] == 4
-        assert self.manager.get_default_test_url("cf") == (
-            "https://speed.cloudflare.com/__down?bytes=104857600"
-        )
+        for source in ("cf", "as13335", "as209242"):
+            assert self.manager.get_default_test_url(source) == "https://cf.xiu2.xyz/url"
         assert self.manager.get_default_test_url("ct") == (
             "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip"
         )

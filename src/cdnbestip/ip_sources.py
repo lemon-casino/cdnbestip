@@ -25,7 +25,10 @@ class IPSourceManager:
             "url": "https://www.cloudflare.com/ips-v4",
             "type": "text",
             "description": "CloudFlare IPv4 ranges",
-            "default_test_url": "https://speed.cloudflare.com/__down?bytes=104857600",
+            # CloudflareSpeedTest's compatible download endpoint. The
+            # official speed.cloudflare.com endpoint returns HTTP 403 when
+            # CFST requests it through a candidate IP.
+            "default_test_url": "https://cf.xiu2.xyz/url",
         },
         "as13335": {
             "name": "Cloudflare AS13335",
@@ -33,7 +36,7 @@ class IPSourceManager:
             "type": "text",
             "ip_version": 4,
             "description": "Cloudflare AS13335 announced IPv4 prefixes",
-            "default_test_url": "https://speed.cloudflare.com/__down?bytes=104857600",
+            "default_test_url": "https://cf.xiu2.xyz/url",
         },
         "as209242": {
             "name": "Cloudflare AS209242",
@@ -41,7 +44,7 @@ class IPSourceManager:
             "type": "text",
             "ip_version": 4,
             "description": "Cloudflare Spectrum/BYOIP AS209242 announced IPv4 prefixes",
-            "default_test_url": "https://speed.cloudflare.com/__down?bytes=104857600",
+            "default_test_url": "https://cf.xiu2.xyz/url",
         },
         "gc": {
             "name": "GCore",
