@@ -20,7 +20,8 @@ services:
       - --port
       - "443"
       - --dns
-      - --only
+      - --quantity
+      - "10"
       - --schedule
       - "60"
     volumes:
