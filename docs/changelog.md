@@ -35,7 +35,7 @@
 #### IP 数据源
 - CloudFlare IP 自动配置
 - GCore IP 自动配置
-- CloudFront IP 支持（需手动配置）
+- CloudFront IP 支持（自动使用 AWS 官方 CloudFront 下载对象，也支持 `-u` 覆盖）
 - AWS IP 支持（需手动配置）
 - 自定义 IP 列表支持
 

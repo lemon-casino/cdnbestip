@@ -48,6 +48,8 @@ class TestSpeedTestExecution:
         assert "/tmp/ip.txt" in call_args
         assert "-o" in call_args
         assert "result.csv" in call_args
+        assert "-dn" in call_args
+        assert call_args[call_args.index("-dn") + 1] == "10"
 
     @patch("subprocess.run")
     @patch("os.path.exists")
@@ -75,11 +77,46 @@ class TestSpeedTestExecution:
         assert "443" in call_args
         assert "-url" in call_args
         assert "https://example.com/test" in call_args
-        # When speed_threshold > 0, -sl and -tl should be added
+        # When speed_threshold > 0, -sl should be added without imposing an
+        # implicit latency filter.
         assert "-sl" in call_args
         assert "5.0" in call_args
-        assert "-tl" in call_args
-        assert "200" in call_args
+        assert "-tl" not in call_args
+        assert "-dn" in call_args
+        assert call_args[call_args.index("-dn") + 1] == "10"
+
+    @patch("subprocess.run")
+    @patch("os.path.exists")
+    def test_run_speed_test_uses_one_download_for_only_mode(self, mock_exists, mock_run):
+        """Only one successful candidate is needed when updating one record."""
+        mock_exists.side_effect = lambda path: path in ["/tmp/ip.txt", "result.csv"]
+        mock_result = Mock()
+        mock_result.returncode = 0
+        mock_run.return_value = mock_result
+
+        self.config.only_one = True
+        self.manager.run_speed_test("/tmp/ip.txt")
+
+        call_args = mock_run.call_args[0][0]
+        assert call_args[call_args.index("-dn") + 1] == "1"
+
+    @patch("subprocess.run")
+    @patch("os.path.exists")
+    def test_extended_download_options_override_defaults(self, mock_exists, mock_run):
+        """User-provided -dn/-tl values are passed once and remain effective."""
+        mock_exists.side_effect = lambda path: path in ["/tmp/ip.txt", "result.csv"]
+        mock_result = Mock()
+        mock_result.returncode = 0
+        mock_run.return_value = mock_result
+
+        self.config.only_one = True
+        self.config.extend_string = "-tl 400 -dn 5"
+        self.manager.run_speed_test("/tmp/ip.txt")
+
+        call_args = mock_run.call_args[0][0]
+        assert call_args.count("-dn") == 1
+        assert call_args[call_args.index("-dn") + 1] == "5"
+        assert call_args[call_args.index("-tl") + 1] == "400"
 
     @patch("subprocess.run")
     @patch("os.path.exists")
@@ -165,6 +202,20 @@ class TestSpeedTestExecution:
         mock_run.return_value = mock_result
 
         with pytest.raises(SpeedTestError, match="Speed test failed with return code 1"):
+            self.manager.run_speed_test("/tmp/ip.txt")
+
+    @patch("subprocess.run")
+    @patch("os.path.exists")
+    def test_run_speed_test_reports_no_results(self, mock_exists, mock_run):
+        """A successful CFST process with no CSV gets an actionable error."""
+        mock_exists.side_effect = lambda path: path == "/tmp/ip.txt"
+        mock_result = Mock()
+        mock_result.returncode = 0
+        mock_result.stdout = "开始下载测速\n没有满足条件的 IP"
+        mock_result.stderr = ""
+        mock_run.return_value = mock_result
+
+        with pytest.raises(SpeedTestError, match="produced no results"):
             self.manager.run_speed_test("/tmp/ip.txt")
 
     @patch("subprocess.run")

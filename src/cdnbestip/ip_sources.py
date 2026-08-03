@@ -57,7 +57,11 @@ class IPSourceManager:
             "type": "json",
             "json_path": "CLOUDFRONT_GLOBAL_IP_LIST",
             "description": "AWS CloudFront IP ranges",
-            "requires_custom_url": True,  # Requires -u parameter
+            # AWS's official CLI installer is a large public object served
+            # through CloudFront, so CloudFront can be tested without a
+            # user-owned distribution. This does not represent all AWS IPs.
+            "default_test_url": "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip",
+            "requires_custom_url": False,
         },
         "aws": {
             "name": "Amazon Web Services",

@@ -44,6 +44,11 @@ class TestIPSourceManager:
         assert self.manager.get_default_test_url("cf") == (
             "https://speed.cloudflare.com/__down?bytes=104857600"
         )
+        assert self.manager.get_default_test_url("ct") == (
+            "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip"
+        )
+        assert self.manager.requires_custom_url("ct") is False
+        assert self.manager.requires_custom_url("aws") is True
 
     def test_get_source_info_invalid_source(self):
         """Test getting information for an invalid source."""

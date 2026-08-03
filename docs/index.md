@@ -79,6 +79,7 @@ cdnbestip -i cf -d global.example.com -p cf -s 3 -n
 ```
 
 也可以直接使用程序内置的定时模式。`--schedule` 的单位是分钟，程序启动后立即执行一次，再按间隔重复执行：
+定时模式遇到临时测速、IP 源或二进制错误时会保留调度器，并在下一个周期自动重试。
 
 ```bash
 # 每 6 小时执行一次，按 Ctrl+C 停止
@@ -157,7 +158,7 @@ services:
 |--------|--------|----------|----------|
 | `cf` | CloudFlare | ✅ | 全球 |
 | `gc` | GCore | ✅ | 亚太 |
-| `ct` | CloudFront | ❌ | 全球 |
+| `ct` | CloudFront | ✅ | 全球 |
 | `aws` | Amazon AWS | ❌ | 全球 |
 
 ## 社区与支持

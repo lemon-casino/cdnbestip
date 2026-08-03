@@ -427,7 +427,9 @@ def _apply_ip_source_test_config(config: Config, args) -> None:
             # For sources that require custom URL, don't set default
             return
 
-        # For cf and gc, set default URL if user didn't specify one
+        # Set a source-specific default URL when one is available. Sources
+        # without a safe public endpoint (currently the full AWS range) still
+        # require an explicit -u/--url value.
         if not user_set_url:
             default_url = ip_manager.get_default_test_url(ip_source)
             # Set default URL even if it's empty string (for cf)

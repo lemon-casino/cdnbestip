@@ -127,8 +127,8 @@ cdnbestip -d example.com -p cf -s 5 -n -q 3
 # 使用 GCore IP（自动配置测试端点）
 cdnbestip -d example.com -p gc -s 3 -n -i gc
 
-# 使用 CloudFront IP（需要指定测试 URL）
-cdnbestip -d example.com -p ct -s 3 -n -i ct -u https://test.cloudfront.net/file
+# 使用 CloudFront IP（自动使用 AWS 官方 CloudFront 下载对象）
+cdnbestip -d example.com -p ct -s 3 -n -i ct
 ```
 
 ### 场景 3: 强制刷新结果

@@ -90,7 +90,8 @@ cdnbestip -d example.com -p cdn -y CNAME -s 2 -n
 
 !!! info "速度阈值说明"
     - 当 `-s` 未指定或为 0 时：不传递 `-sl` 和 `-tl` 参数给 cfst，不进行速度过滤
-    - 当 `-s` 大于 0 时：传递 `-sl` 和 `-tl 200` 给 cfst，同时进行速度和延迟过滤
+    - 当 `-s` 大于 0 时：只传递 `-sl`，不会隐式限制延迟；如需限制延迟，使用 `-e "-tl 400"`
+    - `-o`（仅更新一条记录）会自动将下载测试数量设为 1；可用 `-e "-dn 5"` 覆盖
 
 **示例：**
 
@@ -124,9 +125,9 @@ cdnbestip -d example.com -p cf -s 2 -u https://speed.cloudflare.com/__down?bytes
 | `as13335` | Cloudflare AS13335 IPv4 宣告网段 | ✅ | 全球 |
 | `as209242` | Cloudflare AS209242 IPv4 宣告网段 | ✅ | 全球 |
 | `gc` | GCore | ✅ | 亚太 |
-| `ct` | CloudFront | ❌ | 全球 |
+| `ct` | CloudFront | ✅ | 全球 |
 | `aws` | Amazon AWS | ❌ | 全球 |
-| `all` | 全部预定义 IPv4 源并自动去重，自动分组测速 | ✅；CloudFront/AWS 无默认测速地址 | 全球 |
+| `all` | 全部预定义 IPv4 源并自动去重，自动分组测速 | ✅；AWS 全量源无安全默认地址 | 全球 |
 
 **示例：**
 
@@ -149,8 +150,8 @@ cdnbestip -i all -u https://example.com/test -d example.com -p cf -s 2 -n
 # 使用 GCore IP
 cdnbestip -i gc -d example.com -p gc -s 2 -n
 
-# 使用 CloudFront IP（需要指定测试 URL）
-cdnbestip -i ct -u https://test.cloudfront.net/file -d example.com -p ct -s 2 -n
+# 使用 CloudFront IP（自动使用 AWS 官方 CloudFront 下载对象）
+cdnbestip -i ct -d example.com -p ct -s 2 -n
 
 # 使用自定义 IP 列表
 cdnbestip -i https://example.com/custom-ips.txt -u https://test.example.com/file -d example.com -p custom -s 2 -n
@@ -395,9 +396,9 @@ cdnbestip -d example.com -p cf -s 2 -n -o
 ### IP 源配置错误
 
 ```bash
-# ❌ 错误：CloudFront 需要测试 URL
+# ✅ CloudFront 使用内置的 AWS 官方测试对象
 cdnbestip -i ct -d example.com -p ct -s 2 -n
 
-# ✅ 正确
-cdnbestip -i ct -u https://test.cloudfront.net/file -d example.com -p ct -s 2 -n
+# AWS 全量 IP 源需要与你的目标服务匹配的测试地址
+cdnbestip -i aws -u https://your-service.example.com/test -d example.com -p aws -s 2 -n
 ```

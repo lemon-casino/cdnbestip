@@ -793,6 +793,8 @@ class WorkflowOrchestrator:
                 try:
                     results_file = self.speedtest_manager.run_speed_test(ip_file, results_file)
                     print(f"  ✓ Speed test completed: {results_file}")
+                except SpeedTestError:
+                    raise
                 except Exception as e:
                     if "timeout" in str(e).lower():
                         raise SpeedTestError(
@@ -1265,9 +1267,22 @@ def execute_command(args: argparse.Namespace) -> None:
         while True:
             print("\n🚀 Starting CDNBESTIP workflow...")
             workflow = WorkflowOrchestrator(config)
-            workflow.execute()
-            print("\n✅ Workflow completed successfully!")
-            logger.info("Workflow completed successfully")
+            try:
+                workflow.execute()
+                print("\n✅ Workflow completed successfully!")
+                logger.info("Workflow completed successfully")
+            except (SpeedTestError, BinaryError, IPSourceError, NetworkError) as e:
+                # A scheduled container should survive a transient source,
+                # binary, or speed-test failure and retry on the next cycle.
+                # One-shot commands still fail normally through the outer
+                # exception handlers below.
+                if config.schedule_interval is None:
+                    raise
+                logger.error("Scheduled workflow failed; will retry: %s", e)
+                print(
+                    f"\n⚠️ Scheduled workflow failed: {e}\n"
+                    "   The scheduler remains active and will retry on the next cycle."
+                )
 
             if config.schedule_interval is None:
                 break

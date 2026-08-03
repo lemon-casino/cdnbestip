@@ -124,16 +124,18 @@ A:
 |--------|--------|----------|----------|
 | `cf` | CloudFlare | ✅ | 全球 |
 | `gc` | GCore | ✅ | 亚太 |
-| `ct` | CloudFront | ❌ | 全球 |
+| `ct` | CloudFront | ✅ | 全球 |
 | `aws` | Amazon AWS | ❌ | 全球 |
 
-### Q: 为什么 CloudFront 需要指定测试 URL？
+### Q: CloudFront 默认使用什么测速 URL？
 
-A: CloudFront 没有统一的测试端点，需要根据你的 CloudFront 分发指定测试 URL。
+A: 项目默认使用 AWS 官方 AWS CLI 下载对象。该对象当前由 CloudFront 提供服务，适合测试 CloudFront IP 源。
 
 ```bash
-cdnbestip -i ct -u https://your-distribution.cloudfront.net/test -d example.com -p ct -s 2 -n
+cdnbestip -i ct -d example.com -p ct -s 2 -n
 ```
+
+如果你要测试自己的 CloudFront 分发，可以使用 `-u` 覆盖默认地址。
 
 ### Q: 如何选择合适的 IP 数据源？
 
@@ -244,14 +246,11 @@ A: GitHub Container Registry：`ghcr.io/<GitHub用户名>/cdnbestip`
 
 ### Q: 出现 "IP source requires custom URL" 错误
 
-A: 某些 IP 源（如 CloudFront、AWS）需要指定测试 URL：
+A: AWS 全量 IP 源包含多个 AWS 服务，项目不会使用一个 CloudFront 地址误测全部 AWS 网段。请指定与你的目标服务匹配的测试 URL：
 
 ```bash
-# ❌ 错误
-cdnbestip -i ct -d example.com -p ct -s 2 -n
-
-# ✅ 正确
-cdnbestip -i ct -u https://test.cloudfront.net/file -d example.com -p ct -s 2 -n
+# AWS 全量 IP 源
+cdnbestip -i aws -u https://your-service.example.com/test -d example.com -p aws -s 2 -n
 ```
 
 ### Q: 出现 "Domain not found" 错误

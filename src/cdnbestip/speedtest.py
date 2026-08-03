@@ -352,42 +352,58 @@ class SpeedTestManager:
         else:
             logger.debug("No test URL specified, using CloudflareSpeedTest defaults")
 
-        # Add quantity limit if specified
-        # if hasattr(self.config, 'quantity') and self.config.quantity > 0:
-        #     cmd_args.extend(["-n", str(self.config.quantity)])
-        #     logger.debug(f"Limiting results to: {self.config.quantity}")
+        # Parse extension arguments once so built-in defaults do not create
+        # duplicate flags. User-provided values always win.
+        extend_args: list[str] = []
+        if hasattr(self.config, "extend_string") and self.config.extend_string:
+            import shlex
 
-        # Add speed threshold (-sl) and latency threshold (-tl) only if speed is specified and > 0
+            try:
+                extend_args = shlex.split(self.config.extend_string)
+            except ValueError as e:
+                logger.warning(f"Failed to parse extend string '{self.config.extend_string}': {e}")
+                extend_args = self.config.extend_string.split()
+            logger.debug(f"Parsed extended parameters: {extend_args}")
+
+        extended_flags = {
+            argument.split("=", 1)[0]
+            for argument in extend_args
+            if argument.startswith("-")
+        }
+
+        # CloudflareSpeedTest's -dn controls the number of download tests,
+        # while -n controls latency-test concurrency. Use the requested DNS
+        # result count when available; in --only mode one successful result is
+        # enough and avoids testing the default ten candidates unnecessarily.
+        if getattr(self.config, "only_one", False):
+            download_count = 1
+        elif getattr(self.config, "quantity", 0) > 0:
+            download_count = self.config.quantity
+        else:
+            download_count = 10
+        if "-dn" not in extended_flags:
+            cmd_args.extend(["-dn", str(download_count)])
+            logger.debug(f"Download test count: {download_count}")
+
+        # Add the speed threshold only when requested. Do not silently impose
+        # a 200 ms latency limit: a remote server may have a slower but much
+        # faster route, and users can explicitly pass -tl through -e.
         if (
             hasattr(self.config, "speed_threshold")
             and self.config.speed_threshold is not None
             and self.config.speed_threshold > 0
         ):
-            cmd_args.extend(["-sl", str(self.config.speed_threshold)])
-            logger.debug(f"Speed threshold: {self.config.speed_threshold} MB/s")
-            # Only add latency threshold when speed threshold is set
-            cmd_args.extend(["-tl", "200"])
-            logger.debug("Added latency threshold: 200ms")
+            if "-sl" not in extended_flags:
+                cmd_args.extend(["-sl", str(self.config.speed_threshold)])
+                logger.debug(f"Speed threshold: {self.config.speed_threshold} MB/s")
         else:
             logger.debug(
-                "Speed threshold not specified or <= 0, -sl and -tl parameters not added"
+                "Speed threshold not specified or <= 0, -sl parameter not added"
             )
 
-        # Add extended parameters if specified
-        if hasattr(self.config, "extend_string") and self.config.extend_string:
-            # Parse the extend string and add individual arguments
-            import shlex
-
-            try:
-                extend_args = shlex.split(self.config.extend_string)
-                cmd_args.extend(extend_args)
-                logger.debug(f"Added extended parameters: {extend_args}")
-            except ValueError as e:
-                logger.warning(f"Failed to parse extend string '{self.config.extend_string}': {e}")
-                # Fallback: split by spaces (less robust but still functional)
-                extend_args = self.config.extend_string.split()
-                cmd_args.extend(extend_args)
-                logger.debug(f"Added extended parameters (fallback): {extend_args}")
+        if extend_args:
+            cmd_args.extend(extend_args)
+            logger.debug(f"Added extended parameters: {extend_args}")
 
         logger.debug(f"Speed test command: {' '.join(cmd_args)}")
 
@@ -421,10 +437,34 @@ class SpeedTestManager:
                 logger.error(error_msg)
                 raise SpeedTestError(error_msg)
 
-            # Verify output file was created
+            # CloudflareSpeedTest exits successfully but does not create a
+            # CSV when no IP passes its filters. Turn that ambiguous state
+            # into an actionable error instead of a misleading file error.
             if not os.path.exists(output_file):
-                logger.error(f"Speed test output file not created: {output_file}")
-                raise SpeedTestError(f"Speed test output file not created: {output_file}")
+                output_tail = "\n".join((result.stdout or "").splitlines()[-8:])
+                error_tail = "\n".join((result.stderr or "").splitlines()[-8:])
+                details = output_tail or error_tail
+                message = (
+                    "CloudflareSpeedTest completed but produced no results. "
+                    "This usually means no IP passed the latency/speed filters; "
+                    "try lowering -s, lowering -tl, or using a different -u URL."
+                )
+                if details:
+                    message += f"\nCloudflareSpeedTest output:\n{details}"
+                logger.error(message)
+                raise SpeedTestError(message)
+
+            try:
+                output_size = os.path.getsize(output_file)
+            except OSError:
+                # A concurrent cleanup can remove the file between exists()
+                # and getsize(); parse_results() will report that race clearly.
+                output_size = None
+            if output_size == 0:
+                raise SpeedTestError(
+                    "CloudflareSpeedTest created an empty result file; "
+                    "no IP passed the configured filters."
+                )
 
             logger.info(f"Speed test completed successfully, results saved to: {output_file}")
             return output_file
@@ -436,6 +476,10 @@ class SpeedTestManager:
         except FileNotFoundError:
             logger.error(f"Speed test binary not found: {self.binary_path}")
             raise SpeedTestError(f"Speed test binary not found: {self.binary_path}") from None
+        except SpeedTestError:
+            # Preserve actionable errors raised above, especially the
+            # no-results diagnostic, instead of wrapping them repeatedly.
+            raise
         except Exception as e:
             logger.error(f"Speed test execution failed: {e}")
             raise SpeedTestError(f"Speed test execution failed: {e}") from e

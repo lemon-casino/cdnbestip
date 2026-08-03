@@ -259,6 +259,8 @@ Zone Types:
 > `-q` / `--quantity`:         创建的 DNS 记录数量（默认：0 = 无限制）   
 > `-S` / `--schedule`:         内置定时执行间隔，单位分钟（首次立即执行）   
 
+> `-s` 只设置下载速度阈值，不会自动附加延迟限制。需要限制延迟或覆盖下载测试数量时，可使用 `-e "-tl 400 -dn 5"`。
+
 **IP 数据源：**
 > `-i` / `--ip-url`:            IP 数据源：cf, as13335, as209242, gc, ct, aws, all 或自定义 URL
 
@@ -326,9 +328,9 @@ cdnbestip -d example.com -p cf -s 2 -n
 | `as13335` | Cloudflare AS13335 IPv4 宣告网段 | `https://speed.cloudflare.com/__down?bytes=104857600` | 否 |
 | `as209242` | Cloudflare AS209242 IPv4 宣告网段 | `https://speed.cloudflare.com/__down?bytes=104857600` | 否 |
 | `gc` | GCore | `https://hk2-speedtest.tools.gcore.com/speedtest-backend/garbage.php?ckSize=100` | 否 |
-| `ct` | CloudFront | 无 | **是** |
+| `ct` | CloudFront | `https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip` | 否 |
 | `aws` | Amazon AWS | 无 | **是** |
-| `all` | 全部预定义 IPv4 源（自动去重） | 按数据源自动选择 | 否（CloudFront/AWS 无默认地址） |
+| `all` | 全部预定义 IPv4 源（自动去重） | 按数据源自动选择 | 否（AWS 全量源无安全默认地址） |
 | 自定义 URL | 自定义 | 无 | **是** |
 
 ### 使用示例
@@ -355,8 +357,8 @@ cdnbestip -i all -u https://example.com/test -d example.com -p cf -s 2 -n
 # GCore IP 源 - 自动使用 GCore 测试端点
 cdnbestip -i gc -d example.com -p gc -s 2 -n
 
-# CloudFront IP 源 - 需要指定测试 URL
-cdnbestip -i ct -u https://example.cloudfront.net/test -d example.com -p ct -s 2 -n
+# CloudFront IP 源 - 自动使用 AWS 官方 CloudFront 下载对象
+cdnbestip -i ct -d example.com -p ct -s 2 -n
 
 # 自定义测试 URL（覆盖默认设置）
 cdnbestip -i gc -u https://custom-test.example.com/test -d example.com -p gc -s 2 -n
@@ -372,6 +374,7 @@ cdnbestip -d example.com -p cf --proxy http://proxy.example.com:8080 -s 2 -n
 ### 内置定时执行
 
 使用 `-S` / `--schedule` 设置间隔分钟数。程序会立即执行一次，完成后按间隔重复执行；按 `Ctrl+C` 停止。
+定时模式下，如果某次测速、IP 源下载或二进制检查临时失败，程序会记录错误并保留调度器，下一周期自动重试。
 
 ```bash
 # 每 6 小时自动测速并更新 DNS
@@ -424,9 +427,11 @@ https://cachefly.cachefly.net/100mb.test
 #### [AWS CloudFront](https://aws.amazon.com/cloudfront/)
 
 ```bash
-# AWS 静态资源端点示例
-https://d1.awsstatic.com/logos/aws-logo-lockups/poweredbyaws/PB_AWS_logo_RGB_REV_SQ.8c88ac215fe4e441dc42865dd6962ed4f444a90d.png
+# AWS 官方大文件下载对象，项目对 CloudFront 源默认使用此地址
+https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
 ```
+
+> 该地址只适合测试 CloudFront IP 源。`aws` 数据源包含多个 AWS 服务的网段，不能用单个 CloudFront 对象代表全部 AWS IP，因此仍需通过 `-u` 指定与你的目标服务匹配的地址。
 
 ## 许可证
 
