@@ -193,7 +193,7 @@ Speed Test Settings:
   -u, --url URL         Speed test URL
   -T, --timeout SECONDS
                         Speed test timeout in seconds (default: 600)
-  -q, --quantity COUNT  Number of DNS records to create (default: 0 = unlimited; excess prefixed records are removed)
+  -q, --quantity COUNT  Number of same-name DNS records to maintain (default: 0 = unlimited; stale records are removed)
   -S, --schedule MINUTES
                         Repeat the complete workflow every N minutes (first run starts immediately)
 
@@ -256,7 +256,7 @@ Zone Types:
 > `-P` / `--port`:             速度测试端口（0-65535）   
 > `-u` / `--url`:              速度测试 URL   
 > `-T` / `--timeout`:          速度测试超时时间，单位秒（默认：600）   
-> `-q` / `--quantity`:         创建的 DNS 记录数量（默认：0 = 无限制）   
+> `-q` / `--quantity`:         同一个主机名下维护的 DNS 记录数量（默认：0 = 无限制，旧记录会清理）
 > `-S` / `--schedule`:         内置定时执行间隔，单位分钟（首次立即执行）   
 
 > `-s` 只设置下载速度阈值，不会自动附加延迟限制。需要限制延迟或覆盖下载测试数量时，可使用 `-e "-tl 400 -dn 5"`。

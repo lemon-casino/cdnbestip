@@ -62,7 +62,7 @@ cdnbestip -a your@email.com -k YOUR_API_KEY -d example.com -p cf -s 2 -n
 这将：
 
 - 运行速度测试
-- 创建/更新 DNS 记录（如 `cf1.example.com`, `cf2.example.com`）
+- 在同一个主机名下创建/更新多个 DNS 记录（如 `cf.example.com`）
 - 使用满足速度阈值的最佳 IP
 
 ### 3. 只更新一条记录
@@ -200,13 +200,13 @@ CDNBESTIP Configuration Summary:
 🌐 Step 4: Updating DNS records...
   🔐 Validating CloudFlare credentials...
   ✅ CloudFlare credentials validated successfully
-  📝 Updating batch DNS records with prefix: cf
+  📝 Updating multi-value DNS records: cf.example.com
   ✓ Updated 5 DNS records:
-    • cf1.example.com → 104.18.31.111
-    • cf2.example.com → 103.21.244.82
-    • cf3.example.com → 172.64.155.23
-    • cf4.example.com → 104.16.132.229
-    • cf5.example.com → 172.67.74.226
+    • cf.example.com → 104.18.31.111
+    • cf.example.com → 103.21.244.82
+    • cf.example.com → 172.64.155.23
+    • cf.example.com → 104.16.132.229
+    • cf.example.com → 172.67.74.226
 
 ✅ Workflow completed successfully!
 ```
@@ -217,13 +217,13 @@ CDNBESTIP Configuration Summary:
 
 ```bash
 # 使用 dig
-dig cf1.example.com +short
+dig cf.example.com +short
 
 # 使用 nslookup
-nslookup cf1.example.com
+nslookup cf.example.com
 
 # 使用 host
-host cf1.example.com
+host cf.example.com
 ```
 
 ### 查看结果文件

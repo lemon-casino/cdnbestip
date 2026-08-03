@@ -1,5 +1,6 @@
 """DNS management using CloudFlare API."""
 
+import re
 from typing import Any
 
 import cloudflare
@@ -376,8 +377,16 @@ class DNSManager:
             # Get existing records with the prefix
             existing_records = self.list_records_by_prefix(zone_id, prefix)
 
-            # Sort existing records by name to ensure consistent ordering
-            existing_records.sort(key=lambda r: r.name)
+            # Sort by the numeric suffix so cdst2 comes before cdst10.
+            # Lexical sorting would otherwise keep the wrong records when
+            # the result count shrinks (for example, 10 records -> 4).
+            record_pattern = re.compile(rf"^{re.escape(prefix)}(\d+)")
+
+            def record_number(record: DNSRecord) -> int:
+                match = record_pattern.match(record.name)
+                return int(match.group(1)) if match else 0
+
+            existing_records.sort(key=record_number)
 
             updated_records = []
 
@@ -429,6 +438,74 @@ class DNSManager:
 
         except Exception as e:
             raise DNSError(f"Batch update operation failed: {e}") from e
+
+    def update_multi_value_records(
+        self,
+        zone_id: str,
+        name: str,
+        ip_addresses: list[str],
+        record_type: str = "A",
+        proxied: bool = False,
+        ttl: int = 1,
+    ) -> list[DNSRecord]:
+        """Synchronize multiple records that share one DNS name.
+
+        Cloudflare represents an A record set as multiple records with the
+        same name. This method updates the first records, creates missing
+        records with the same name, and deletes stale records when the new
+        result set is smaller.
+        """
+        if not self.is_authenticated():
+            raise AuthenticationError("Not authenticated with CloudFlare API")
+
+        if not ip_addresses:
+            logger.info("No IP addresses provided; removing all records for %s", name)
+
+        try:
+            existing_records = self.list_records(
+                zone_id, record_type=record_type, name=name
+            )
+            updated_records: list[DNSRecord] = []
+
+            for index, ip_address in enumerate(ip_addresses):
+                if index < len(existing_records):
+                    existing_record = existing_records[index]
+                    updated_records.append(
+                        self.update_record(
+                            zone_id=zone_id,
+                            record_id=existing_record.id,
+                            content=ip_address,
+                            name=name,
+                            record_type=record_type,
+                            proxied=proxied,
+                            ttl=ttl,
+                        )
+                    )
+                else:
+                    updated_records.append(
+                        self.create_record(
+                            zone_id=zone_id,
+                            name=name,
+                            content=ip_address,
+                            record_type=record_type,
+                            proxied=proxied,
+                            ttl=ttl,
+                        )
+                    )
+
+            for stale_record in existing_records[len(ip_addresses) :]:
+                self.delete_record(zone_id, stale_record.id)
+
+            logger.info(
+                "Synchronized %s: %s active records, %s stale records removed",
+                name,
+                len(updated_records),
+                max(0, len(existing_records) - len(ip_addresses)),
+            )
+            return updated_records
+
+        except Exception as e:
+            raise DNSError(f"Multi-value DNS update failed for {name}: {e}") from e
 
     def get_zone_id(self, domain: str) -> str:
         """

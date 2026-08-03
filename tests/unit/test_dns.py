@@ -804,24 +804,23 @@ class TestDNSBatchOperations:
         """Test batch update when there are more existing records than IPs."""
         from cdnbestip.models import DNSRecord
 
-        ip_addresses = ["192.168.1.10"]  # Only 1 IP
+        ip_addresses = ["192.168.1.10", "192.168.1.20"]  # Only 2 IPs
 
-        # Mock 3 existing records
+        # Mock records with a double-digit suffix to verify numeric ordering.
         existing_records = [
             DNSRecord(id="1", name="cf1.example.com", content="192.168.1.1", type="A"),
-            DNSRecord(id="2", name="cf2.example.com", content="192.168.1.2", type="A"),
-            DNSRecord(id="3", name="cf3.example.com", content="192.168.1.3", type="A"),
+            DNSRecord(id="2", name="cf10.example.com", content="192.168.1.10", type="A"),
+            DNSRecord(id="3", name="cf2.example.com", content="192.168.1.2", type="A"),
         ]
 
         with patch.object(self.dns_manager, "list_records_by_prefix") as mock_list:
             mock_list.return_value = existing_records
 
-            # Mock update for first record
-            mock_updated = Mock()
-            mock_updated.content = "192.168.1.10"
+            # Mock updates for the first two numeric records (cf1 and cf2).
+            mock_updated = [Mock(content=ip) for ip in ip_addresses]
 
             with patch.object(self.dns_manager, "update_record") as mock_update:
-                mock_update.return_value = mock_updated
+                mock_update.side_effect = mock_updated
 
                 with patch.object(self.dns_manager, "delete_record") as mock_delete:
                     mock_delete.return_value = True
@@ -830,14 +829,27 @@ class TestDNSBatchOperations:
                         zone_id=self.zone_id, prefix="cf", ip_addresses=ip_addresses
                     )
 
-                    # Should update 1 record and delete 2 excess records
-                    assert len(records) == 1
-                    assert mock_update.call_count == 1
-                    assert mock_delete.call_count == 2
+                    # Should update cf1/cf2 and delete the excess cf10 record.
+                    assert len(records) == 2
+                    assert mock_update.call_count == 2
+                    assert mock_delete.call_count == 1
 
                     # Verify delete calls for excess records
-                    mock_delete.assert_any_call(self.zone_id, "2")
-                    mock_delete.assert_any_call(self.zone_id, "3")
+                    mock_update.assert_any_call(
+                        zone_id=self.zone_id,
+                        record_id="1",
+                        content="192.168.1.10",
+                        proxied=False,
+                        ttl=1,
+                    )
+                    mock_update.assert_any_call(
+                        zone_id=self.zone_id,
+                        record_id="3",
+                        content="192.168.1.20",
+                        proxied=False,
+                        ttl=1,
+                    )
+                    mock_delete.assert_called_once_with(self.zone_id, "2")
 
     def test_batch_operations_not_authenticated(self):
         """Test batch operations when not authenticated."""
@@ -854,6 +866,36 @@ class TestDNSBatchOperations:
 
         with pytest.raises(AuthenticationError):
             self.dns_manager.update_batch_records(self.zone_id, "cf", ["192.168.1.1"])
+
+    def test_update_multi_value_records_removes_stale_same_name_records(self):
+        """Multiple IPs use one name and stale values are removed."""
+        from cdnbestip.models import DNSRecord
+
+        name = "cdst.example.com"
+        existing_records = [
+            DNSRecord(id="1", name=name, content="192.0.2.1", type="A"),
+            DNSRecord(id="2", name=name, content="192.0.2.2", type="A"),
+            DNSRecord(id="3", name=name, content="192.0.2.3", type="A"),
+        ]
+        updated_records = [
+            Mock(id="1", name=name, content="198.51.100.1"),
+            Mock(id="2", name=name, content="198.51.100.2"),
+        ]
+
+        with patch.object(self.dns_manager, "list_records", return_value=existing_records):
+            with patch.object(
+                self.dns_manager, "update_record", side_effect=updated_records
+            ) as mock_update:
+                with patch.object(self.dns_manager, "delete_record", return_value=True) as mock_delete:
+                    records = self.dns_manager.update_multi_value_records(
+                        zone_id=self.zone_id,
+                        name=name,
+                        ip_addresses=["198.51.100.1", "198.51.100.2"],
+                    )
+
+        assert len(records) == 2
+        assert mock_update.call_count == 2
+        mock_delete.assert_called_once_with(self.zone_id, "3")
 
 
 class TestDNSRecordAttributeHandling:
