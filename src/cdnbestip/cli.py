@@ -1084,7 +1084,19 @@ class WorkflowOrchestrator:
                 print("  ✅ CloudFlare credentials validated successfully")
             except Exception as e:
                 print(f"  ❌ CloudFlare credential validation failed: {e}")
-                if "invalid" in str(e).lower() or "unauthorized" in str(e).lower():
+                error_text = str(e).lower()
+                if (
+                    "permission" in error_text
+                    or "forbidden" in error_text
+                    or "9109" in error_text
+                ):
+                    raise AuthenticationError(
+                        "CloudFlare API token does not have the required permissions",
+                        suggestion=(
+                            "Grant Zone Read and DNS Write permissions for the target zone"
+                        ),
+                    ) from e
+                elif "invalid" in error_text or "unauthorized" in error_text:
                     raise AuthenticationError(
                         "CloudFlare authentication failed: Invalid credentials",
                         suggestion="Check your API token/key and ensure it has DNS edit permissions",
