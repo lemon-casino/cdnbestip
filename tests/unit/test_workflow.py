@@ -295,7 +295,7 @@ class TestWorkflowOrchestrator:
         mock_dns_manager = mock_dns_manager_class.return_value
         mock_dns_manager.get_zone_id.return_value = "zone123"
         mock_dns_records = [MagicMock() for _ in range(3)]
-        mock_dns_manager.batch_upsert_records.return_value = mock_dns_records
+        mock_dns_manager.update_batch_records.return_value = mock_dns_records
 
         # Execute
         workflow._update_dns_records(sample_results)
@@ -303,9 +303,9 @@ class TestWorkflowOrchestrator:
         # Verify
         mock_dns_manager.authenticate.assert_called_once()
         mock_dns_manager.get_zone_id.assert_called_once_with("example.com")
-        mock_dns_manager.batch_upsert_records.assert_called_once_with(
+        mock_dns_manager.update_batch_records.assert_called_once_with(
             zone_id="zone123",
-            base_name="cf",
+            prefix="cf",
             ip_addresses=["1.1.1.1", "1.0.0.1", "8.8.8.8"],
             record_type="A",
         )

@@ -193,7 +193,7 @@ Speed Test Settings:
   -u, --url URL         Speed test URL
   -T, --timeout SECONDS
                         Speed test timeout in seconds (default: 600)
-  -q, --quantity COUNT  Number of DNS records to create (default: 0 = unlimited)
+  -q, --quantity COUNT  Number of DNS records to create (default: 0 = unlimited; excess prefixed records are removed)
   -S, --schedule MINUTES
                         Repeat the complete workflow every N minutes (first run starts immediately)
 

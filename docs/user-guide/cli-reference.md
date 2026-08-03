@@ -166,6 +166,7 @@ cdnbestip -i https://example.com/custom-ips.txt -u https://test.example.com/file
 | `-r` | `--refresh` | 强制刷新 result.csv |
 | `-n` | `--dns` | 更新 DNS 记录 |
 | `-o` | `--only` | 仅更新一条记录（最快的 IP） |
+| `-q 10` | `--quantity 10` | 最多维护 10 条记录；旧的第 11 条及以后记录会删除 |
 
 **示例：**
 
@@ -178,6 +179,9 @@ cdnbestip -d example.com -p cf -s 2 -n
 
 # 只更新一条最快的记录
 cdnbestip -d example.com -p cf -s 2 -n -o
+
+# 维护 10 条达标记录，下一次运行会覆盖旧记录并删除多余记录
+cdnbestip -d example.com -p cf -s 10 -q 10 -n
 
 # 组合使用
 cdnbestip -d example.com -p cf -s 2 -r -n -o

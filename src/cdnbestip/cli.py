@@ -1151,9 +1151,13 @@ class WorkflowOrchestrator:
                     # Update multiple records with prefix (cf1, cf2, etc.)
                     print(f"  📝 Updating batch DNS records with prefix: {self.config.prefix}")
 
-                    dns_records = self.dns_manager.batch_upsert_records(
+                    # Synchronize the prefix range instead of only upserting.
+                    # This updates the selected records and removes stale
+                    # records (for example cdst11+) when the next run returns
+                    # fewer IPs.
+                    dns_records = self.dns_manager.update_batch_records(
                         zone_id=zone_id,
-                        base_name=self.config.prefix,
+                        prefix=self.config.prefix,
                         ip_addresses=ip_addresses,
                         record_type=self.config.zone_type,
                     )
